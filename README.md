@@ -1,15 +1,19 @@
 # SIITec Hackathon 2569 — Vision-Language AI for Smart Factory
 
-รอบคัดเลือกออนไลน์ (28 พ.ย. 2569): ใช้ OWLv2 หาตำหนิของชิ้นงานด้วยการ **พิมพ์คำค้น** แล้วเขียน Python กรองผลต่อเอง
+รอบคัดเลือกออนไลน์ (28 พ.ย. 2569): ใช้ OWLv2 หาตำหนิของชิ้นงานด้วยการ **พิมพ์คำค้น** แล้วเขียน Python (`my_filter`, `my_draw`) ต่อเอง
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SIITec-Hackathon-2026/round1/blob/main/round1.ipynb)
+
+เปิด `round1.ipynb` ใน Colab → *Runtime ▸ Change runtime type ▸ T4 GPU* → *Runtime ▸ Run all*
 
 ## ข้อมูล
 
-ภาพอยู่ใน [Releases](https://github.com/SIITec-Hackathon-2026/round1/releases) ไม่ได้อยู่ใน git (notebook โหลดให้เอง)
-
 | ไฟล์ | มีอะไร |
 |---|---|
-| `train.zip` | ภาพสำหรับฝึก 217 ภาพ (มีภาพชิ้นงานปกติปนอยู่) + เฉลย `labels.json` |
-| `test_images.zip` | ภาพทดสอบ ไม่มีเฉลย — ปล่อยเวลา 10.30 น. วันแข่ง |
+| `train.zip` ([Releases](https://github.com/SIITec-Hackathon-2026/round1/releases)) | ภาพสำหรับฝึก 217 ภาพ (มีภาพชิ้นงานปกติปนอยู่) + เฉลย `labels.json` — notebook โหลดให้เอง |
+| ชุดทดสอบลับ | ไม่แจก — กรรมการรันไฟล์ส่งงานของแต่ละทีมกับชุดนี้ และเปิดเผยหลังประกาศผล |
+
+ส่งงาน: แท็บ **ส่งงาน** ในหน้าจอ สร้างไฟล์ `siitec_round1_<ทีม>.json` (คำค้น + โค้ดในเซลล์ `my_filter` และ `my_draw`) ส่งพร้อมวิดีโอนำเสนอ
 
 `labels.json`:
 
