@@ -7,11 +7,7 @@
   "metal_nut_color",
   "metal_nut_flip",
   "metal_nut_scratch",
-  "screw_manipulated_front",
-  "screw_scratch_head",
-  "screw_scratch_neck",
-  "screw_thread_side",
-  "screw_thread_top"
+  "screw_defect"
  ],
  "images": [
   {
@@ -21,7 +17,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       654,
       367,
@@ -38,7 +34,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       261,
       711,
@@ -72,7 +68,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       507,
       460,
@@ -106,7 +102,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       423,
       84,
@@ -140,7 +136,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       595,
       126,
@@ -157,7 +153,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       76,
       396,
@@ -246,7 +242,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       453,
       592,
@@ -270,7 +266,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       542,
       352,
@@ -287,7 +283,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       259,
       614,
@@ -304,7 +300,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       785,
       829,
@@ -321,7 +317,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       403,
       431,
@@ -441,7 +437,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       334,
       352,
@@ -503,7 +499,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       69,
       711,
@@ -554,7 +550,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       253,
       203,
@@ -602,7 +598,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       30,
       546,
@@ -619,7 +615,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       302,
       801,
@@ -696,7 +692,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       884,
       386,
@@ -754,7 +750,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       468,
       661,
@@ -785,7 +781,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       876,
       546,
@@ -802,7 +798,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       538,
       674,
@@ -860,7 +856,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       367,
       286,
@@ -954,7 +950,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       874,
       198,
@@ -995,7 +991,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       667,
       530,
@@ -1004,7 +1000,7 @@
      ]
     },
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       331,
       611,
@@ -1028,7 +1024,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       618,
       255,
@@ -1059,7 +1055,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       813,
       809,
@@ -1090,7 +1086,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       547,
       485,
@@ -1107,7 +1103,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       510,
       196,
@@ -1158,7 +1154,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       500,
       396,
@@ -1282,7 +1278,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       916,
       525,
@@ -1334,7 +1330,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       298,
       565,
@@ -1358,7 +1354,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       30,
       642,
@@ -1392,7 +1388,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       872,
       509,
@@ -1409,7 +1405,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       592,
       105,
@@ -1440,7 +1436,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       393,
       380,
@@ -1457,7 +1453,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       179,
       375,
@@ -1498,7 +1494,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       452,
       574,
@@ -1621,7 +1617,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       388,
       466,
@@ -1698,7 +1694,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       310,
       490,
@@ -1732,7 +1728,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       763,
       93,
@@ -1756,7 +1752,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       142,
       848,
@@ -1780,7 +1776,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       419,
       925,
@@ -1902,7 +1898,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       115,
       751,
@@ -1926,7 +1922,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       438,
       896,
@@ -1957,7 +1953,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       829,
       309,
@@ -1974,7 +1970,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       525,
       504,
@@ -2073,7 +2069,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       348,
       478,
@@ -2155,7 +2151,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       851,
       559,
@@ -2196,7 +2192,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_head",
+     "label": "screw_defect",
      "box": [
       662,
       194,
@@ -2213,7 +2209,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       504,
       198,
@@ -2302,7 +2298,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       609,
       457,
@@ -2515,7 +2511,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       320,
       688,
@@ -2563,7 +2559,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       410,
       674,
@@ -2580,7 +2576,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       294,
       494,
@@ -2597,7 +2593,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       274,
       647,
@@ -2724,7 +2720,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_manipulated_front",
+     "label": "screw_defect",
      "box": [
       194,
       84,
@@ -2741,7 +2737,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       167,
       774,
@@ -2832,7 +2828,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_top",
+     "label": "screw_defect",
      "box": [
       665,
       608,
@@ -2849,7 +2845,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       306,
       270,
@@ -2858,7 +2854,7 @@
      ]
     },
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       566,
       541,
@@ -2957,7 +2953,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       444,
       367,
@@ -2981,7 +2977,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_thread_side",
+     "label": "screw_defect",
      "box": [
       692,
       277,
@@ -3032,7 +3028,7 @@
    "category": "screw",
    "boxes": [
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       550,
       551,
@@ -3041,7 +3037,7 @@
      ]
     },
     {
-     "label": "screw_scratch_neck",
+     "label": "screw_defect",
      "box": [
       678,
       634,
