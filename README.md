@@ -4,7 +4,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SIITec-Hackathon-2026/round1/blob/main/round1.ipynb)
 
-เปิด `round1.ipynb` ใน Colab → *Runtime ▸ Change runtime type ▸ T4 GPU* → *Runtime ▸ Run all*
+เปิด `round1.ipynb` ใน Colab → *Runtime ▸ Change runtime type ▸ T4 GPU* → กด ▶ ที่เซลล์เดียวของโน้ตบุ๊ก
 
 ## ข้อมูล
 
@@ -13,7 +13,7 @@
 | `train.zip` ([Releases](https://github.com/SIITec-Hackathon-2026/round1/releases)) | ภาพสำหรับฝึก 217 ภาพ (มีภาพชิ้นงานปกติปนอยู่) + เฉลย `labels.json` — notebook โหลดให้เอง |
 | ชุดทดสอบลับ | ไม่แจก — กรรมการรันไฟล์ส่งงานของแต่ละทีมกับชุดนี้ และเปิดเผยหลังประกาศผล |
 
-ส่งงาน: แท็บ **ส่งงาน** ในหน้าจอ สร้างไฟล์ `siitec_round1_<ทีม>.json` (คำค้น + โค้ดในเซลล์ `my_filter` และ `my_draw`) ส่งพร้อมวิดีโอนำเสนอ
+ส่งงาน: แท็บ **ส่งงาน** ในหน้าจอ สร้างไฟล์ `siitec_round1_<ทีม>.json` (คำค้น + Script ที่มี `my_filter` และ `my_draw`) ส่งพร้อมวิดีโอนำเสนอ
 
 `labels.json`:
 

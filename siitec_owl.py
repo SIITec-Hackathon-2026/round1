@@ -5,10 +5,8 @@ prompts only needs the text part and a small matrix product, so trying prompts
 and thresholds takes well under a second.
 """
 import base64
-import inspect
 import io
 import json
-import linecache
 import os
 import time
 import urllib.request
@@ -91,6 +89,9 @@ def read_rgb(path):
 class Finder:
     def __init__(self, device=None):
         from transformers import Owlv2ForObjectDetection, Owlv2Processor
+        from transformers.utils import logging as hf_logging
+        hf_logging.set_verbosity_error()      # no weight-loading bars or warnings in the notebook
+        hf_logging.disable_progress_bar()
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         self.proc = Owlv2Processor.from_pretrained(MODEL)
@@ -191,23 +192,12 @@ def apply_filter(fn, folder, records, detections):
     return out
 
 
-def cell_source(fn):
-    """The whole notebook cell (or file) that defined fn, so helpers and imports travel with it."""
-    if fn is None:
-        return ""
-    try:
-        lines = linecache.getlines(inspect.getsourcefile(fn) or inspect.getfile(fn))
-        return "".join(lines) if lines else inspect.getsource(fn)
-    except (OSError, TypeError):
-        return ""
-
-
 def load_code(source, name):
     """Run exported cell source in a fresh namespace and return the function `name` (or None)."""
     if not source.strip():
         return None
     ns = {"np": np, "cv2": cv2}
-    exec(compile(source, f"<{name}>", "exec"), ns)
+    exec(compile(source, "<script>", "exec"), ns)
     return ns.get(name)
 
 
@@ -257,14 +247,12 @@ def evaluate(records, detections, classes):
 
 # ---------------------------------------------------------------- submission
 
-def make_export(team, prompts, filter_fn, draw_fn, train_score=None):
-    """What a team hands in (with its video): settings and code, enough to re-run on any set."""
+def make_export(team, prompts, script, train_score=None):
+    """What a team hands in (with its video): prompts and script, enough to re-run on any set."""
     return {
-        "kind": "siitec-round1", "version": 1, "team": team,
+        "kind": "siitec-round1", "version": 2, "team": team,
         "made": time.strftime("%Y-%m-%d %H:%M:%S"), "model": MODEL,
-        "prompts": prompts,
-        "my_filter": cell_source(filter_fn), "my_draw": cell_source(draw_fn),
-        "train_score": train_score,
+        "prompts": prompts, "script": script, "train_score": train_score,
     }
 
 
