@@ -390,7 +390,7 @@ class App:
 
         self.gallery = Gallery(lambda: self.train, lambda: self.fns.get("my_draw"))
         pages = [self._prompt_page(), self._script_page(), self.gallery.box, self._export_page()]
-        titles = ["คำค้น", "Script", "ภาพ", "ส่งงาน"]
+        titles = ["คำค้น", "Script", "ภาพ", "บันทึก"]
         if self.has_test:
             pages.append(self._test_page())
             titles.append("🔓 ชุดทดสอบ")
@@ -448,7 +448,7 @@ class App:
 
     def _export_page(self):
         self.team_box = W.Text(value=self.team, placeholder="ชื่อทีม", layout=W.Layout(width="280px"))
-        save = _button("ส่งออกไฟล์ส่งงาน", primary=True)
+        save = _button("ดาวน์โหลดไฟล์", primary=True)
         msg = _html()
         up = W.FileUpload(accept=".json", multiple=False, description="เปิดไฟล์เดิม", icon="")
         up_msg = _html()
@@ -492,7 +492,8 @@ class App:
         save.on_click(do_save)
         up.observe(do_load, "value")
         return W.VBox([
-            _html('<div class="k">ไฟล์มีคำค้นและ Script — ส่งพร้อมวิดีโอ · คะแนนจริงมาจากชุดทดสอบลับ</div>'),
+            _html('<div class="k">ไฟล์เก็บคำค้นและ Script ของทีม — ใช้แนบตอนส่งงานตามช่องทางที่ผู้จัดแจ้ง '
+                  'และใช้เปิดงานต่อเมื่อ Colab หลุด</div>'),
             W.HBox([self.team_box, save], layout=W.Layout(grid_gap="10px", align_items="center")), msg,
             W.HBox([up, up_msg], layout=W.Layout(grid_gap="10px", align_items="center", margin="14px 0 0")),
         ], layout=W.Layout(grid_gap="8px"))
