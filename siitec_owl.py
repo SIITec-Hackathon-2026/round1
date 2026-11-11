@@ -63,7 +63,7 @@ def test_available(folder="."):
     """The test set (with answers) is published only when the round-1 results are out."""
     if (Path(folder) / "siitec_round1_test").exists():
         return True
-    if (Path(os.environ.get("SIITEC_DATA", folder)) / "test.zip").exists():
+    if any((Path(d) / "test.zip").exists() for d in (os.environ.get("SIITEC_DATA", folder), folder)):
         return True
     try:
         req = urllib.request.Request(_release_url("test"), method="HEAD")
@@ -125,7 +125,9 @@ class Finder:
     def text(self, prompts):
         new = [p for p in dict.fromkeys(prompts) if p not in self._text]
         if new:
-            t = self.proc(text=new, return_tensors="pt", padding=True).to(self.device)
+            # OWLv2 reads at most 16 tokens of a prompt; longer ones are cut there
+            t = self.proc(text=new, return_tensors="pt", padding="max_length", truncation=True,
+                          max_length=16).to(self.device)
             f = self.model.owlv2.get_text_features(input_ids=t["input_ids"], attention_mask=t["attention_mask"])
             f = getattr(f, "pooler_output", f)
             f = f / (f.norm(dim=-1, keepdim=True) + 1e-6)
@@ -187,9 +189,43 @@ def apply_filter(fn, folder, records, detections):
         return detections
     out = []
     for r, ds in zip(records, detections):
-        res = fn(read_rgb(Path(folder) / r["file"]), [dict(d) for d in ds])
-        out.append(list(res) if res is not None else ds)
+        res = fn(read_rgb(Path(folder) / r["file"]), [dict(d, box=list(d["box"])) for d in ds])
+        out.append(check_detections(res, r["file"]))
     return out
+
+
+def check_detections(res, picture):
+    """my_filter's answer for one picture, checked: a list of {"label", "score", "box"}.
+    Raises FilterOutputError with a message the team can act on."""
+    where = f"(ภาพ {picture})"
+    if res is None:
+        raise FilterOutputError(f"my_filter ไม่ได้ return อะไรเลย — ต้อง return list ของกรอบ {where}")
+    if isinstance(res, (dict, str)) or not hasattr(res, "__iter__"):
+        raise FilterOutputError(f"my_filter ต้อง return list ของกรอบ แต่ได้ {type(res).__name__} {where}")
+    out = []
+    for d in res:
+        if not isinstance(d, dict):
+            raise FilterOutputError(f"กรอบแต่ละอันต้องเป็น dict แต่ได้ {type(d).__name__} {where}")
+        missing = [k for k in ("label", "score", "box") if k not in d]
+        if missing:
+            raise FilterOutputError(f"กรอบขาด {', '.join(missing)} {where}")
+        if d["label"] not in CLASS_INFO:
+            raise FilterOutputError(f"ไม่มีแบบชื่อ {d['label']!r} {where}")
+        try:
+            score = float(d["score"])
+            box = [float(v) for v in d["box"]]
+        except (TypeError, ValueError):
+            raise FilterOutputError(f"score ต้องเป็นตัวเลข และ box ต้องเป็นตัวเลข 4 ตัว {where}") from None
+        if len(box) != 4 or not all(np.isfinite(box + [score])):
+            raise FilterOutputError(f"box ต้องเป็น [x1, y1, x2, y2] ตัวเลข 4 ตัว {where}")
+        x1, y1, x2, y2 = box
+        out.append({"label": d["label"], "score": score,
+                    "box": [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]})
+    return out
+
+
+class FilterOutputError(ValueError):
+    pass
 
 
 def load_code(source, name):

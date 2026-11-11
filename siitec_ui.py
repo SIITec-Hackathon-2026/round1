@@ -6,12 +6,16 @@ pictures on the right, the output panel and a status bar below. ▶ Run (or Ctrl
 in a file) runs both files again.
 """
 import base64
+import contextlib
 import html
 import io
 import json
 import re
+import signal
+import threading
 import time
 import traceback
+import unicodedata
 from pathlib import Path
 
 import cv2
@@ -33,6 +37,10 @@ COLORS = {  # class -> RGB, readable on the pictures
     "metal_nut_scratch": (120, 255, 120), "screw_defect": (255, 120, 60),
 }
 EDITOR_H = 560   # height of a file in the editor, px
+SCRIPT_SECONDS = 15     # running script.py itself (imports, constants)
+FILTER_SECONDS = 120    # my_filter over every picture
+DRAW_SECONDS = 20       # my_draw over one page of pictures
+MAX_PROMPT_TOKENS = 16  # OWLv2 reads no more of a prompt
 
 # Flat editor look: Dark Modern / Light Modern colours, no gradients, square corners
 STYLE = """<style>
@@ -101,6 +109,12 @@ STYLE = """<style>
 .siitec .up{color:var(--good)} .siitec .down{color:var(--bad)} .siitec .muted{color:var(--muted)}
 .siitec .ok{color:var(--good)} .siitec .miss{color:var(--bad)} .siitec .fa{color:var(--warn)}
 .siitec .err{color:var(--bad)}
+.siitec .noteline{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px;color:var(--warn);white-space:pre-wrap}
+.siitec .printed{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px;white-space:pre-wrap;max-height:160px;overflow:auto;
+  border-left:2px solid var(--line);padding-left:8px;margin-bottom:6px}
+.siitec .titlebar > *,.siitec .viewbar > *{flex-shrink:0}
+.siitec .titlebar .hdr{white-space:nowrap}
+.siitec .viewbar .widget-html{white-space:nowrap}
 .siitec .errline{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px;color:var(--bad);white-space:pre-wrap}
 .siitec .dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
 .siitec .ckey{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12px}
@@ -301,6 +315,40 @@ def _err_text(e):
     return f"{type(e).__name__}: {msg}" + (f"  (บรรทัด {line})" if line else "")
 
 
+class _Printed(io.StringIO):
+    """What the team's code prints, kept for the output panel."""
+
+    def lines(self, n=30):
+        out = self.getvalue().rstrip("\n").split("\n") if self.getvalue().strip() else []
+        return (["…"] if len(out) > n else []) + out[-n:]
+
+
+@contextlib.contextmanager
+def _team_code(printed, seconds):
+    """Run the team's code: catch its prints, stop it after `seconds` (an endless loop must
+    not freeze the screen). The time limit needs the main thread and SIGALRM (Colab has both)."""
+    timed = threading.current_thread() is threading.main_thread() and hasattr(signal, "SIGALRM")
+    if timed:
+        def stop(*_):
+            raise TimeoutError(f"ทำงานนานเกิน {seconds} วินาที — มีลูปไม่จบหรือเปล่า")
+        old = signal.signal(signal.SIGALRM, stop)
+        signal.alarm(seconds)
+    try:
+        with contextlib.redirect_stdout(printed):
+            yield
+    finally:
+        if timed:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
+
+
+def _team_error(e):
+    """An error of the team's code as text; Ctrl+C / the Stop button counts as one too."""
+    if isinstance(e, KeyboardInterrupt):
+        return "หยุดกลางคัน (กด Stop)"
+    return _err_text(e)
+
+
 def _root(children):
     box = W.VBox([_html(STYLE)] + children)
     box.add_class("siitec")
@@ -410,14 +458,24 @@ class App:
     def _read_inputs(self):
         self.prompts_text = self.prompt_area.value
         self.prompts, self.prompt_errors = parse_prompts(self.prompts_text, self.classes)
+        self.long_prompts = [p for ps in self.prompts.values() for p in ps if self._tokens(p) > MAX_PROMPT_TOKENS]
         self.script = self.script_area.value
         self.fns, self.script_error = {}, None
+        self.printed = _Printed()
         try:
             ns = {"np": np, "cv2": cv2}
-            exec(compile(self.script, "<script>", "exec"), ns)
+            with _team_code(self.printed, SCRIPT_SECONDS):
+                exec(compile(self.script, "<script>", "exec"), ns)
             self.fns = {k: ns[k] for k in ("my_filter", "my_draw") if callable(ns.get(k))}
-        except Exception as e:
-            self.script_error = _err_text(e)
+        except (Exception, KeyboardInterrupt) as e:
+            self.script_error = _team_error(e)
+
+    def _tokens(self, prompt):
+        """Tokens OWLv2 sees in a prompt, start and end marks included."""
+        try:
+            return len(self.finder.proc.tokenizer(prompt.lstrip("-").strip())["input_ids"])
+        except Exception:
+            return 0
 
     # ------------------------------------------------------------ running
     def _run(self, ds):
@@ -427,11 +485,14 @@ class App:
         found = so.apply_thresholds(ds.candidates, {c: START_THRESHOLD for c in self.classes})
         self.filter_error = None
         fn = self.fns.get("my_filter")
-        if fn:
+        if fn and not self.script_error:
             try:
-                found = so.apply_filter(fn, ds.dir, ds.records, ds.candidates)
-            except Exception as e:
-                self.filter_error = _err_text(e)
+                with _team_code(self.printed, FILTER_SECONDS):
+                    found = so.apply_filter(fn, ds.dir, ds.records, ds.candidates)
+            except so.FilterOutputError as e:
+                self.filter_error = str(e)
+            except (Exception, KeyboardInterrupt) as e:
+                self.filter_error = _team_error(e)
         ds.found = found
         ds.score, ds.per, ds.marks = so.evaluate(ds.records, found, ds.classes)
 
@@ -446,8 +507,8 @@ class App:
             self._autosave()
             self._show_result(prev, time.time() - t)
             self.gallery.refresh()
-        except Exception as e:
-            self.statusbar.value = f'<div class="statusbar bad">{html.escape(type(e).__name__ + ": " + str(e))}</div>'
+        except (Exception, KeyboardInterrupt) as e:
+            self.statusbar.value = f'<div class="statusbar bad">✕ {html.escape(_team_error(e))}</div>'
 
     def _show_result(self, prev, secs):
         s = self.train.score
@@ -468,7 +529,18 @@ class App:
             v = self.train.per[c]
             rows.append(f'<div><span class="dot" style="background:rgb{COLORS[c]}"></span><span class="c">{c}</span>'
                         f'<b>{v["f1"]:.2f}</b><span class="muted">✓{v["tp"]} ✗{v["fp"]} ?{v["fn"]}</span></div>')
+        notes = []
+        if not self.script_error and "my_filter" not in self.fns:
+            notes.append(f"script.py ไม่มี def my_filter — ใช้เกณฑ์ {START_THRESHOLD} ทุกแบบ")
+        if not self.script_error and "my_draw" not in self.fns:
+            notes.append("script.py ไม่มี def my_draw — วาดภาพแบบตั้งต้น")
+        notes += [f"prompts.txt คำค้นยาวเกิน {MAX_PROMPT_TOKENS - 2} คำ ส่วนท้ายถูกตัด: {p}" for p in self.long_prompts]
         err = "".join(f'<div class="errline">✕ {html.escape(p)}</div>' for p in problems)
+        err += "".join(f'<div class="noteline">! {html.escape(n)}</div>' for n in notes)
+        printed = self.printed.lines()
+        if printed:
+            err += ('<div class="ptitle" style="padding-top:6px">print</div><div class="printed">'
+                    + html.escape("\n".join(printed)) + "</div>")
         self.output.value = (f'<div class="ptitle">Output · F1 ของแต่ละแบบ (ชุดฝึก) · ✓ ถูก ✗ ทักผิด ? พลาด</div>'
                              f'{err}<div class="f1grid">{"".join(rows)}</div>')
 
@@ -488,7 +560,8 @@ class App:
         self.score_html = _html('<div class="score">–</div>')
         self.team_box = W.Text(value=self.team, placeholder="ชื่อทีม", layout=W.Layout(width="160px"))
         save, load, self.file_msg = self._file_tools()
-        title = W.HBox([_html(HEADER), W.HBox(layout=W.Layout(flex="1")), self.file_msg, self.team_box, save, load,
+        self.save_button, self.load_button = save, load
+        title = W.HBox([_html(HEADER), W.HBox(layout=W.Layout(flex="1")), self.team_box, save, load,
                         self.score_html, run],
                        layout=W.Layout(align_items="center", grid_gap="8px"))
         title.add_class("titlebar")
@@ -540,7 +613,7 @@ class App:
         main = W.HBox([editor, side])
 
         self.output = _html('<div class="ptitle">Output</div>')
-        out = W.VBox([self.output])
+        out = W.VBox([self.file_msg, self.output])
         out.add_class("panel")
         self.statusbar = _html('<div class="statusbar">พร้อม</div>')
 
@@ -585,7 +658,8 @@ class App:
             self._read_inputs()
             exp = so.make_export(team, self.prompts, self.script, round(self.train.score or 0, 4))
             exp["prompts_text"] = self.prompts_text
-            safe = "".join(ch if ch.isalnum() else "_" for ch in team)[:40] or "team"
+            safe = "".join(ch if ch.isalnum() or unicodedata.category(ch).startswith("M") else "_"
+                           for ch in team)[:40] or "team"   # Thai vowel marks are category M
             path = Path(f"siitec_round1_{safe}.json")
             path.write_text(json.dumps(exp, ensure_ascii=False, indent=1))
             self._autosave()
@@ -602,15 +676,26 @@ class App:
             if not item:
                 return
             try:
+                load.value = ()     # so picking the same file again is seen as a change
+            except Exception:
+                pass
+            try:
                 data = json.loads(bytes(item["content"]).decode("utf-8"))
+                if not isinstance(data, dict) or not isinstance(data.get("prompts", {}), dict) \
+                        or not isinstance(data.get("script", ""), str):
+                    raise ValueError
+            except Exception:
+                msg.value = '<span class="err">✕ ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้</span>'
+                return
+            try:
                 self.prompt_area.value = data.get("prompts_text") or prompts_to_text(data.get("prompts", {}), self.classes)
                 if data.get("script"):
                     self.script_area.value = data["script"]
                 self.team_box.value = data.get("team", self.team_box.value)
                 msg.value = '<span class="ok">✓ เปิดไฟล์แล้ว</span>'
                 self._press()
-            except Exception as e:
-                msg.value = f'<span class="err">เปิดไม่ได้: {html.escape(str(e))}</span>'
+            except Exception:
+                msg.value = '<span class="err">✕ ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้ หรือถูกแก้จนเสีย</span>'
 
         save.on_click(do_save)
         load.observe(do_load, "value")
@@ -622,18 +707,19 @@ class Gallery:
 
     def __init__(self, get_ds, get_draw, sets, on_set, height):
         self.get_ds, self.get_draw, self.page, self.one = get_ds, get_draw, 0, 0
+        self.draw_problem, self.printed = None, _Printed()
         self.mode = "grid"
         self.seg = {m: W.Button(description=t, layout=W.Layout(width="auto")) for m, t in (("grid", "หลายภาพ"), ("one", "ทีละภาพ"))}
         for m, b in self.seg.items():
             b.on_click(lambda _, m=m: self._set_mode(m))
         seg = W.HBox(list(self.seg.values()))
         seg.add_class("seg")
-        self.set_pick = W.Dropdown(options=sets, value="train", layout=W.Layout(width="120px",
+        self.set_pick = W.Dropdown(options=sets, value="train", layout=W.Layout(width="104px",
                                    display="flex" if len(sets) > 1 else "none"))
         self.set_pick.observe(lambda ch: on_set(ch["new"]), "value")
         self.pick = W.Dropdown(options=[("ทุกภาพ", "all"), ("มีที่พลาด", "miss"), ("มีที่ทักผิด", "fa"), ("ถูกหมด", "ok"),
                                         ("ขวด", "bottle"), ("น็อต", "metal_nut"), ("สกรู", "screw")],
-                               layout=W.Layout(width="110px"))
+                               layout=W.Layout(width="100px"))
         self.prev, self.next = _button("◀"), _button("▶")
         self.where, self.gal, self.msg = _html(), _html(), _html()
         self.pick.observe(lambda _: self._go(0), "value")
@@ -662,7 +748,10 @@ class Gallery:
             i = int(ch["new"].split(":")[0])
         except ValueError:
             return
-        pick = self._picked(self.get_ds())
+        ds = self.get_ds()
+        if ds is None or ds.marks is None:
+            return
+        pick = self._picked(ds)
         if i in pick:
             self.one = pick.index(i)
             self._set_mode("one")
@@ -685,28 +774,54 @@ class Gallery:
         return pick
 
     def _drawn(self, ds, i, img):
+        """my_draw's picture; after its first failure on a page the rest use the built-in drawing."""
         draw, out = self.get_draw(), None
-        if draw:
+        if draw and not self.draw_problem:
             try:
-                out = np.asarray(draw(img.copy(), [dict(d) for d in ds.found[i]],
-                                      [dict(a) for a in ds.records[i]["boxes"]]), np.uint8)
-            except Exception as e:
-                self.msg.value = (f'<div class="errline">✕ my_draw  {html.escape(_err_text(e))}  → ใช้แบบตั้งต้น</div>')
-        if out is None or out.ndim != 3 or out.shape[:2] != img.shape[:2]:
+                with _team_code(self.printed, DRAW_SECONDS):
+                    res = draw(img.copy(), [dict(d, box=list(d["box"])) for d in ds.found[i]],
+                               [dict(a, box=list(a["box"])) for a in ds.records[i]["boxes"]])
+                if res is None:
+                    self.draw_problem = "my_draw ไม่ได้ return ภาพ — ลืม return img หรือเปล่า"
+                else:
+                    a = np.asarray(res)
+                    if a.ndim != 3 or a.shape[2] != 3 or a.shape[:2] != img.shape[:2]:
+                        self.draw_problem = (f"my_draw ต้อง return ภาพสีขนาดเดิม {img.shape[0]}×{img.shape[1]}×3 "
+                                             f"แต่ได้ {'×'.join(map(str, a.shape)) or type(res).__name__}")
+                    else:
+                        out = np.clip(a, 0, 255).astype(np.uint8)
+            except (Exception, KeyboardInterrupt) as e:
+                self.draw_problem = "my_draw  " + _team_error(e)
+        if out is None:
             out = default_draw(img, ds.found[i], ds.records[i]["boxes"])
         return out
 
     def refresh(self):
+        """Draw the pane again; a failure here is shown in the pane, never stops the screen."""
+        self.draw_problem, self.printed = None, _Printed()
+        try:
+            self._refresh()
+        except (Exception, KeyboardInterrupt) as e:
+            self.gal.value = f'<div class="errline">✕ {html.escape(_team_error(e))}</div>'
+        msg = ""
+        if self.draw_problem:
+            msg += f'<div class="errline">✕ {html.escape(self.draw_problem)}  → ใช้แบบตั้งต้น</div>'
+        printed = self.printed.lines(10)
+        if printed:
+            msg += ('<div class="ptitle">print จาก my_draw</div><div class="printed">'
+                    + html.escape("\n".join(printed)) + "</div>")
+        self.msg.value = msg
+
+    def _refresh(self):
         ds = self.get_ds()
         if ds is None or ds.marks is None:
             return
-        self.msg.value = ""
         pick = self._picked(ds)
         if self.mode == "one":
             return self._show_one(ds, pick)
         pages = max(1, -(-len(pick) // PER_PAGE))
         self.page = min(max(self.page, 0), pages - 1)
-        self.where.value = f'<span class="k">{self.page + 1}/{pages} · {len(pick)} ภาพ</span>'
+        self.where.value = f'<span class="k">{self.page + 1}/{pages}</span>'
         shots = []
         for i in pick[self.page * PER_PAGE:(self.page + 1) * PER_PAGE]:
             r, (f_hit, a_hit) = ds.records[i], ds.marks[i]
@@ -727,7 +842,7 @@ class Gallery:
         self.one = min(max(self.one, 0), len(pick) - 1)
         i = pick[self.one]
         r, (f_hit, a_hit) = ds.records[i], ds.marks[i]
-        self.where.value = f'<span class="k">{self.one + 1}/{len(pick)} · {r["file"][:-4]}</span>'
+        self.where.value = f'<span class="k">{self.one + 1}/{len(pick)}</span>'
         img = so.read_rgb(Path(ds.dir) / r["file"])
         out = self._drawn(ds, i, img)
 
@@ -769,7 +884,7 @@ class Gallery:
             miss_txt = '<div class="muted">ภาพนี้ปกติ ไม่มีตำหนิ — ทุกกรอบที่เก็บคือทักผิด</div>'
         table = ('<table class="dbg"><tr><th>#</th><th>class</th><th>คะแนน</th><th>ขนาด</th><th>my_filter</th><th>ผล</th></tr>'
                  + "".join(trs) + "</table>" if trs else '<div class="muted">ไม่มีกรอบเลย</div>')
-        self.gal.value = (f'<div class="one"><img src="data:image/jpeg;base64,{_jpeg_b64(out, 720)}">'
+        self.gal.value = (f'<div class="one"><div class="k">{r["file"]} · {so.PART_TH[r["category"]]}</div><img src="data:image/jpeg;base64,{_jpeg_b64(out, 720)}">'
                           f'{table}{miss_txt}</div>')
         self.foot.value = ('<div class="k">ตัวเลขบนภาพตรงกับแถวในตาราง · กรอบเทา = my_filter ตัดทิ้ง · '
                            '“ตัดตัวถูกทิ้ง” = ลองลดเกณฑ์ของแบบนั้น</div>')
