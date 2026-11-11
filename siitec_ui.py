@@ -48,10 +48,10 @@ STYLE = """<style>
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 .siitec{--bg:#ffffff;--side:#f8f8f8;--bar:#f8f8f8;--tab:#f8f8f8;--line:#e5e5e5;--ink:#3b3b3b;--muted:#767676;
   --field:#ffffff;--fieldline:#cecece;--accent:#005fb8;--on-accent:#ffffff;--hover:#e8e8e8;--sel:#add6ff;
-  --status:#005fb8;--status-bad:#c72e0f;--glow:rgba(0,0,0,.16);--good:#388a34;--bad:#c72e0f;--warn:#8a6a00;--gutter:#6e7681}
+  --status:#005fb8;--status-bad:#c72e0f;--glow:rgba(0,0,0,.10);--good:#388a34;--bad:#c72e0f;--warn:#8a6a00;--gutter:#6e7681}
 @media (prefers-color-scheme: dark){.siitec{--bg:#1f1f1f;--side:#181818;--bar:#181818;--tab:#181818;--line:#2b2b2b;--ink:#cccccc;
   --muted:#9d9d9d;--field:#313131;--fieldline:#3c3c3c;--accent:#0078d4;--on-accent:#ffffff;--hover:#2a2d2e;--sel:#264f78;
-  --status:#0078d4;--status-bad:#c72e0f;--glow:rgba(255,255,255,.55);--good:#89d185;--bad:#f48771;--warn:#cca700;--gutter:#6e7681}}
+  --status:#0078d4;--status-bad:#c72e0f;--glow:rgba(255,255,255,.35);--good:#89d185;--bad:#f48771;--warn:#cca700;--gutter:#6e7681}}
 .siitec{color:var(--ink);background:var(--bg);border:1px solid var(--line);box-sizing:border-box;width:100%;
   font-family:'Sarabun',system-ui,sans-serif;font-size:14px;line-height:1.45;
   --jp-widgets-color:var(--ink);--jp-widgets-label-color:var(--ink);--jp-widgets-input-color:var(--ink);
@@ -72,7 +72,7 @@ STYLE = """<style>
 .siitec .titlebar{background:var(--bar);border-bottom:1px solid var(--line);padding:6px 10px}
 .siitec .hdr{display:flex;align-items:center;gap:8px}
 .siitec .logo{height:36px;display:flex;align-items:center;padding:0 4px}
-.siitec .logo img{height:32px;display:block;filter:drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 8px var(--glow))}
+.siitec .logo img{height:32px;display:block;filter:drop-shadow(0 0 2px var(--glow))}
 .siitec .logo.txt{font-weight:700;font-size:11px;color:var(--muted)}
 .siitec .t1{font-weight:600} .siitec .t2{color:var(--muted)}
 .siitec .score{font-family:'JetBrains Mono','Sarabun',monospace;font-size:20px;font-weight:600;color:var(--ink);line-height:1}
