@@ -1,13 +1,15 @@
-"""SIITec Hackathon 2569, round 1: the notebook's screen (ipywidgets).
+"""SIITec Hackathon 2569, round 1: the notebook's screen (ipywidgets), laid out like a code editor.
 
 App() gets everything ready (GPU, data, model, picture features) and app.show()
-draws the screen. The team's script (my_filter, my_draw) is typed in the Script tab
-and run again each time ▶ is pressed.
+draws the screen: the team's two files (prompts.txt, script.py) on the left, the
+pictures on the right, the output panel and a status bar below. ▶ Run (or Ctrl+Enter
+in a file) runs both files again.
 """
 import base64
 import html
 import io
 import json
+import re
 import time
 import traceback
 from pathlib import Path
@@ -30,76 +32,95 @@ COLORS = {  # class -> RGB, readable on the pictures
     "metal_nut_color": (60, 200, 255), "metal_nut_flip": (255, 220, 50),
     "metal_nut_scratch": (120, 255, 120), "screw_defect": (255, 120, 60),
 }
+EDITOR_H = 560   # height of a file in the editor, px
 
+# Flat editor look: Dark Modern / Light Modern colours, no gradients, square corners
 STYLE = """<style>
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap');
-.siitec{--bg:#ffffff;--card:#fff;--field:#f6f8fb;--ink:#14202e;--muted:#6b7a8c;--line:#e4e9f0;--accent:#0891b2;--on-accent:#fff;
-  --good:#15803d;--bad:#dc2626;--warn:#b45309}
-@media (prefers-color-scheme: dark){.siitec{--bg:#0e1624;--card:#131c2b;--field:#0f1724;--ink:#e6edf7;--muted:#8b9bb0;--line:#243246;
-  --accent:#38d6f0;--on-accent:#04212b;--good:#34d399;--bad:#f87171;--warn:#fbbf24}}
-.siitec{color:var(--ink);background:var(--bg);border-radius:14px;padding:14px 18px;box-sizing:border-box;font-family:'Sarabun',system-ui,sans-serif;font-size:15px;line-height:1.45;max-width:1100px;
-  --jp-widgets-color:var(--ink);--jp-widgets-label-color:var(--ink);--jp-widgets-readout-color:var(--muted);
-  --jp-widgets-input-color:var(--ink);--jp-widgets-input-background-color:var(--field);--jp-widgets-input-border-color:var(--line);
-  --jp-widgets-input-focus-border-color:var(--accent);--jp-widgets-slider-handle-background-color:var(--accent);
-  --jp-widgets-slider-active-handle-color:var(--accent);--jp-widgets-slider-handle-border-color:var(--accent);
-  --jp-widgets-font-size:15px;--jp-layout-color1:var(--card);--jp-border-color1:var(--line)}
-.siitec *{font-family:inherit}
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+.siitec{--bg:#ffffff;--side:#f8f8f8;--bar:#f8f8f8;--tab:#f8f8f8;--line:#e5e5e5;--ink:#3b3b3b;--muted:#767676;
+  --field:#ffffff;--fieldline:#cecece;--accent:#005fb8;--on-accent:#ffffff;--hover:#e8e8e8;--sel:#add6ff;
+  --status:#005fb8;--status-bad:#c72e0f;--good:#388a34;--bad:#c72e0f;--warn:#8a6a00;--gutter:#6e7681}
+@media (prefers-color-scheme: dark){.siitec{--bg:#1f1f1f;--side:#181818;--bar:#181818;--tab:#181818;--line:#2b2b2b;--ink:#cccccc;
+  --muted:#9d9d9d;--field:#313131;--fieldline:#3c3c3c;--accent:#0078d4;--on-accent:#ffffff;--hover:#2a2d2e;--sel:#264f78;
+  --status:#0078d4;--status-bad:#c72e0f;--good:#89d185;--bad:#f48771;--warn:#cca700;--gutter:#6e7681}}
+.siitec{color:var(--ink);background:var(--bg);border:1px solid var(--line);box-sizing:border-box;width:100%;
+  font-family:'Sarabun',system-ui,sans-serif;font-size:14px;line-height:1.45;
+  --jp-widgets-color:var(--ink);--jp-widgets-label-color:var(--ink);--jp-widgets-input-color:var(--ink);
+  --jp-widgets-input-background-color:var(--field);--jp-widgets-input-border-color:var(--fieldline);
+  --jp-widgets-input-focus-border-color:var(--accent);--jp-widgets-font-size:14px;--jp-layout-color1:var(--bg);--jp-border-color1:var(--line)}
+.siitec *{font-family:inherit;box-sizing:border-box}
 .siitec .widget-label,.siitec label{color:var(--ink)!important}
-.siitec textarea,.siitec input[type=text],.siitec select{background:var(--field)!important;color:var(--ink)!important;
-  border:1px solid var(--line)!important;border-radius:8px!important;font-size:14px!important}
-.siitec textarea{font-family:'JetBrains Mono',ui-monospace,monospace!important;font-size:13px!important;padding:6px 9px!important;line-height:1.5!important;resize:vertical}
-.siitec .siitec-code textarea{tab-size:4;white-space:pre;overflow:auto;padding:10px 12px!important}
-.siitec textarea:focus,.siitec input:focus,.siitec select:focus{border-color:var(--accent)!important;outline:none}
-.siitec .widget-readout{color:var(--muted)!important;font-family:'JetBrains Mono',monospace;font-size:12.5px}
-.siitec .noUi-target,.siitec .ui-slider{background:var(--line)!important;border:none!important;box-shadow:none!important}
-.siitec .noUi-handle,.siitec .ui-slider .ui-slider-handle{background:var(--accent)!important;border:2px solid var(--card)!important;box-shadow:none!important}
-.siitec button,.siitec .jupyter-button{border-radius:8px!important;font-weight:600!important;border:1px solid var(--line)!important;
-  background:transparent!important;color:var(--ink)!important;height:34px;padding:0 14px!important;box-shadow:none!important}
-.siitec button:hover{border-color:var(--accent)!important}
-.siitec .primary button,.siitec button.primary{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important;height:40px;padding:0 20px!important;font-size:15px!important}
-.siitec .lm-TabBar-tab,.siitec .p-TabBar-tab{background:transparent!important;color:var(--muted)!important;border:none!important;
-  border-bottom:2px solid transparent!important;font-size:15px!important;font-weight:600;padding:6px 14px!important;min-width:auto!important;flex:0 0 auto!important}
-.siitec .lm-TabBar-tab.lm-mod-current,.siitec .p-TabBar-tab.p-mod-current{color:var(--ink)!important;border-bottom-color:var(--accent)!important}
-.siitec .lm-TabBar,.siitec .p-TabBar{border-bottom:1px solid var(--line)!important;background:transparent!important}
-.siitec .lm-TabBar-content,.siitec .p-TabBar-content{border:none!important}
-.siitec .widget-tab-contents{background:transparent!important;border:none!important;padding:12px 0 0!important}
-.siitec .widget-checkbox input{accent-color:var(--accent)}
-.siitec .hdr{display:flex;align-items:center;gap:10px;padding:4px 0 2px}
-.siitec .logo{height:28px;display:flex;align-items:center;font-weight:700;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:0 7px}
-.siitec .logo img{height:28px}
-.siitec .t1{font-size:18px;font-weight:700} .siitec .t2{color:var(--muted);font-size:14px}
-.siitec .score{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:var(--accent);line-height:1}
-.siitec .k{font-size:12.5px;color:var(--muted)}
+.siitec input[type=text],.siitec select{background:var(--field)!important;color:var(--ink)!important;
+  border:1px solid var(--fieldline)!important;border-radius:2px!important;font-size:13px!important;height:26px!important}
+.siitec input:focus,.siitec select:focus,.siitec textarea:focus{outline:1px solid var(--accent)!important;outline-offset:-1px;border-color:var(--accent)!important}
+.siitec button,.siitec .jupyter-button{border-radius:2px!important;font-weight:400!important;border:1px solid var(--fieldline)!important;
+  background:transparent!important;color:var(--ink)!important;height:26px!important;line-height:24px!important;padding:0 10px!important;
+  box-shadow:none!important;font-size:13px!important}
+.siitec button:hover{background:var(--hover)!important}
+.siitec button.primary{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important}
+.siitec button.primary:hover{filter:brightness(1.1)}
+/* title bar */
+.siitec .titlebar{background:var(--bar);border-bottom:1px solid var(--line);padding:6px 10px}
+.siitec .hdr{display:flex;align-items:center;gap:8px}
+.siitec .logo{height:24px;display:flex;align-items:center;font-weight:700;font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 6px}
+.siitec .logo img{height:24px}
+.siitec .t1{font-weight:600} .siitec .t2{color:var(--muted)}
+.siitec .score{font-family:'JetBrains Mono','Sarabun',monospace;font-size:20px;font-weight:600;color:var(--ink);line-height:1}
+.siitec .k{font-size:12px;color:var(--muted)}
+/* panes */
+.siitec .pane{min-width:0;overflow:hidden}
+.siitec .side{background:var(--side);border-left:1px solid var(--line)}
+.siitec .tabs{background:var(--tab);border-bottom:1px solid var(--line);height:35px;flex:none!important;align-items:stretch!important}
+.siitec .tabs button{height:35px!important;line-height:33px!important;border:none!important;border-right:1px solid var(--line)!important;
+  border-top:1px solid transparent!important;padding:0 14px!important;color:var(--muted)!important;font-family:'JetBrains Mono','Sarabun',monospace!important;font-size:12.5px!important}
+.siitec .tabs button.on{background:var(--bg)!important;color:var(--ink)!important;border-top-color:var(--accent)!important}
+.siitec .tabs .grow{flex:1}
+.siitec .tabs .tool{display:flex;align-items:center;gap:6px;padding:0 8px}
+.siitec .siitec-code{width:100%;flex:none!important}
+.siitec .siitec-code textarea{font-family:'JetBrains Mono','Sarabun',ui-monospace,monospace!important;font-size:13px!important;line-height:19px!important;
+  background:var(--bg)!important;color:var(--ink)!important;border:none!important;border-radius:0!important;padding:6px 10px!important;
+  tab-size:4;white-space:pre;overflow:auto;resize:none;height:100%!important}
+.siitec .siitec-code textarea::selection{background:var(--sel)}
+.siitec .gutter{font-family:'JetBrains Mono','Sarabun',monospace;font-size:13px;line-height:19px;color:var(--gutter);text-align:right;
+  padding:6px 8px 0 10px;white-space:pre;overflow:hidden;user-select:none;min-width:44px;flex:none;background:var(--bg)}
+.siitec .viewbar{padding:4px 8px;border-bottom:1px solid var(--line);height:35px;flex:none!important;align-items:center}
+.siitec .view{overflow:auto;padding:8px}
+.siitec .seg button{border-radius:0!important;margin:0!important}
+.siitec .seg button+button{border-left:none!important}
+.siitec .seg button.on{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important}
+/* output panel and status bar */
+.siitec .panel{border-top:1px solid var(--line);padding:4px 12px 8px}
+.siitec .ptitle{font-size:11px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;padding:2px 0 4px}
+.siitec .f1grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));column-gap:22px;font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px}
+.siitec .f1grid div{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.siitec .f1grid .c{overflow:hidden;text-overflow:ellipsis;flex:1}
+.siitec .statusbar{background:var(--status);color:#fff;font-size:12px;padding:0 10px;height:22px;display:flex;align-items:center;gap:16px;white-space:nowrap;overflow:hidden}
+.siitec .statusbar.bad{background:var(--status-bad)}
+.siitec .statusbar .r{margin-left:auto}
+/* text marks */
 .siitec .up{color:var(--good)} .siitec .down{color:var(--bad)} .siitec .muted{color:var(--muted)}
-.siitec .status{font-size:13px;color:var(--muted)}
-.siitec .part{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;margin:10px 0 0}
-.siitec .row{border-bottom:1px solid var(--line);padding:6px 0}
-.siitec .name{display:flex;gap:8px;align-items:flex-start;line-height:1.3}
-.siitec .dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:6px}
-.siitec .ckey{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
-.siitec .f1{font-family:'JetBrains Mono',monospace;text-align:right;line-height:1.25;white-space:nowrap}
-.siitec .f1 b{font-size:16px} .siitec .f1 span{font-size:11px;color:var(--muted)}
-.siitec .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.siitec .shot{border-radius:8px;overflow:hidden;outline:none;border:1px solid var(--line);transition:transform .15s;background:var(--card)}
+.siitec .ok{color:var(--good)} .siitec .miss{color:var(--bad)} .siitec .fa{color:var(--warn)}
+.siitec .err{color:var(--bad)}
+.siitec .errline{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px;color:var(--bad);white-space:pre-wrap}
+.siitec .dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+.siitec .ckey{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12px}
+.siitec code{font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px}
+/* pictures */
+.siitec .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.siitec .shot{border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.siitec .shot:hover{outline:1px solid var(--accent)}
 .siitec .shot img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover;background:#000}
-.siitec .shot .cap{display:flex;gap:6px;align-items:center;padding:4px 7px;font-size:12px}
-.siitec .shot .fn{font-family:'JetBrains Mono',monospace;color:var(--muted);margin-right:auto;font-size:11px}
-.siitec .ok{color:var(--good);font-weight:600} .siitec .miss{color:var(--bad);font-weight:600} .siitec .fa{color:var(--warn);font-weight:600}
-.siitec .shot:focus{transform:scale(2.2);transform-origin:center top;z-index:20;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.45)}
-.siitec .err{color:var(--bad);font-weight:600}
-.siitec .one{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
-.siitec .one img{width:100%;border-radius:8px;display:block}
-@media (max-width:760px){.siitec .one{grid-template-columns:1fr}}
-.siitec table.dbg{border-collapse:collapse;width:100%;font-size:13px;margin-bottom:8px}
-.siitec table.dbg th{color:var(--muted);font-weight:600;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);font-size:12px}
-.siitec table.dbg td{padding:4px 6px;border-bottom:1px solid var(--line)}
-.siitec .num{font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap}
-.siitec .widget-toggle-buttons .widget-toggle-button{height:34px}
-.siitec .widget-toggle-buttons button.mod-active{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important}
-.siitec .errbox{white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:12px;border-left:3px solid var(--bad);padding:6px 10px;margin-top:4px}
-.siitec code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--field);padding:1px 5px;border-radius:5px}
-.siitec .prog{height:4px;border-radius:4px;background:var(--line);overflow:hidden;max-width:360px;margin:4px 0 0 26px}
+.siitec .shot .cap{display:flex;gap:6px;align-items:center;padding:2px 6px;font-size:11.5px;font-family:'JetBrains Mono','Sarabun',monospace}
+.siitec .shot .fn{color:var(--muted);margin-right:auto}
+.siitec .one img{width:100%;display:block;margin-bottom:8px}
+.siitec table.dbg{border-collapse:collapse;width:100%;font-size:12.5px;margin-bottom:6px}
+.siitec table.dbg th{color:var(--muted);font-weight:400;text-align:left;padding:3px 6px;border-bottom:1px solid var(--line);font-size:11.5px}
+.siitec table.dbg td{padding:3px 6px;border-bottom:1px solid var(--line)}
+.siitec .num{font-family:'JetBrains Mono','Sarabun',monospace;text-align:right;white-space:nowrap}
+.siitec .prog{height:2px;background:var(--line);overflow:hidden;max-width:360px;margin:4px 0 0 26px}
 .siitec .prog i{display:block;height:100%;background:var(--accent)}
+.siitec .setup{padding:10px 14px}
+.siitec .jump{display:none!important}
 </style>"""
 
 
@@ -177,14 +198,71 @@ def my_draw(image, found, answers):
     return img
 '''
 
-# Tab in the script box types four spaces instead of leaving the box
-TAB_KEY = """
+PROMPTS_HEAD = """# คำค้นภาษาอังกฤษ บรรทัดละแบบ ใต้ [ชื่อแบบ]
+# ขึ้นต้นด้วย -  = "ไม่ใช่สิ่งนี้"    ·    หลัง # = หมายเหตุ ไม่ถูกใช้
+# เกณฑ์ความมั่นใจตั้งใน script.py
+"""
+
+
+def prompts_to_text(prompts, classes):
+    lines = [PROMPTS_HEAD]
+    for c in classes:
+        lines.append(f"[{c}]".ljust(24) + f"  # {so.PART_TH[so.CLASS_INFO[c][0]]}: {so.CLASS_INFO[c][1]}")
+        lines += prompts.get(c, [])
+        lines.append("")
+    return "\n".join(lines)
+
+
+def parse_prompts(text, classes):
+    """prompts.txt -> ({class: [prompt, ...]}, [(line, message), ...])."""
+    prompts, errors, cur = {c: [] for c in classes}, [], None
+    for n, raw in enumerate(text.split("\n"), 1):
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        m = re.fullmatch(r"\[\s*([A-Za-z0-9_]+)\s*\]", line)
+        if m:
+            cur = m.group(1)
+            if cur not in prompts:
+                errors.append((n, f"ไม่มีแบบชื่อ {cur}"))
+                cur = None
+            continue
+        if line.startswith("["):
+            errors.append((n, "หัวข้อต้องเป็น [ชื่อแบบ]"))
+        elif cur is None:
+            errors.append((n, "คำค้นนี้ไม่อยู่ใต้ [ชื่อแบบ] ใด"))
+        else:
+            prompts[cur].append(line)
+    return prompts, errors
+
+
+# The editor's keys and line numbers: Tab types four spaces, Ctrl+Enter presses ▶ Run,
+# a picture clicked in the grid opens on its own.
+EDITOR_JS = """
 <script>
 (function(){
-  function hook(root){
-    root.querySelectorAll('.siitec-code textarea:not([data-tab])').forEach(function(t){
-      t.dataset.tab = 1;
+  if (window.__siitecEditor) return; window.__siitecEditor = 1;
+  function nums(t, g){
+    var n = t.value.split('\\n').length;
+    if (g.dataset.n != n){ var s = []; for (var i = 1; i <= n; i++) s.push(i); g.textContent = s.join('\\n'); g.dataset.n = n; }
+    g.scrollTop = t.scrollTop;
+  }
+  function hook(){
+    document.querySelectorAll('.siitec-code textarea:not([data-ed])').forEach(function(t){
+      t.dataset.ed = 1; t.spellcheck = false;
+      var g = document.createElement('div'); g.className = 'gutter';
+      t.parentElement.insertBefore(g, t);
+      var up = function(){ nums(t, g); };
+      t.addEventListener('input', up); t.addEventListener('scroll', up); up();
+      setInterval(up, 400);                      // the value can also change from Python
       t.addEventListener('keydown', function(e){
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+          e.preventDefault();
+          t.dispatchEvent(new Event('input', {bubbles: true}));
+          var b = t.closest('.siitec').querySelector('button.run-btn');
+          if (b) setTimeout(function(){ b.click(); }, 60);
+          return;
+        }
         if (e.key !== 'Tab') return;
         e.preventDefault();
         var s = t.selectionStart, v = t.value;
@@ -194,8 +272,16 @@ TAB_KEY = """
       });
     });
   }
-  new MutationObserver(function(){ hook(document); }).observe(document.body, {childList: true, subtree: true});
-  hook(document);
+  document.addEventListener('click', function(e){
+    var s = e.target.closest && e.target.closest('.siitec .shot[data-i]');
+    if (!s) return;
+    var inp = s.closest('.siitec').querySelector('.jump input');
+    if (!inp) return;
+    inp.value = s.dataset.i + ':' + Date.now();
+    inp.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  new MutationObserver(hook).observe(document.body, {childList: true, subtree: true});
+  hook();
 })();
 </script>
 """
@@ -215,14 +301,14 @@ def _err_text(e):
     return f"{type(e).__name__}: {msg}" + (f"  (บรรทัด {line})" if line else "")
 
 
-def _root(children, gap="10px"):
-    box = W.VBox([_html(STYLE)] + children, layout=W.Layout(grid_gap=gap))
+def _root(children):
+    box = W.VBox([_html(STYLE)] + children)
     box.add_class("siitec")
     return box
 
 
 def default_draw(image, found, answers):
-    """Built-in drawing, used when the notebook has no my_draw (or it fails)."""
+    """Built-in drawing, used when the script has no my_draw (or it fails)."""
     img = image.copy()
     t = max(2, img.shape[0] // 300)
     for a in answers:
@@ -258,6 +344,7 @@ class App:
     def __init__(self, folder="."):
         self.folder = folder
         box = _html()
+        box.add_class("setup")
         self.setup_view = _root([box])
         display(self.setup_view)
         lines = []
@@ -292,7 +379,9 @@ class App:
         self.has_test = so.test_available(folder)
         self.classes = self.train.classes
         saved = self._load_autosave()
-        self.prompts = saved.get("prompts") or {c: [self._default_prompt(c)] for c in self.classes}
+        prompts = saved.get("prompts") or {c: [self._default_prompt(c)] for c in self.classes}
+        self.prompts_text = saved.get("prompts_text") or prompts_to_text(prompts, self.classes)
+        self.prompts, self.prompt_errors = parse_prompts(self.prompts_text, self.classes)
         self.team = saved.get("team", "")
         self.script = saved.get("script") or SCRIPT_TEMPLATE
         self.fns, self.script_error, self.filter_error = {}, None, None
@@ -313,13 +402,14 @@ class App:
     def _autosave(self):
         try:
             Path(AUTOSAVE).write_text(json.dumps({"team": self.team_box.value, "prompts": self.prompts,
-                                                  "script": self.script}, ensure_ascii=False, indent=1))
+                                                  "prompts_text": self.prompts_text, "script": self.script},
+                                                 ensure_ascii=False, indent=1))
         except Exception:
             pass
 
     def _read_inputs(self):
-        for c in self.classes:
-            self.prompts[c] = [l for l in self.areas[c].value.split("\n") if l.strip()]
+        self.prompts_text = self.prompt_area.value
+        self.prompts, self.prompt_errors = parse_prompts(self.prompts_text, self.classes)
         self.script = self.script_area.value
         self.fns, self.script_error = {}, None
         try:
@@ -330,14 +420,12 @@ class App:
             self.script_error = _err_text(e)
 
     # ------------------------------------------------------------ running
-    def _run(self, ds, find=True):
-        """find=True: prompts changed (text part again); False: my_filter only."""
+    def _run(self, ds):
         self._read_inputs()
-        if find or ds.candidates is None:
-            ds.candidates = self.finder.find(ds.cache, ds.records, self.prompts)
+        ds.candidates = self.finder.find(ds.cache, ds.records, self.prompts)
         # without a (working) my_filter every class keeps boxes scoring START_THRESHOLD or more
-        plain = so.apply_thresholds(ds.candidates, {c: START_THRESHOLD for c in self.classes})
-        found, self.filter_error = plain, None
+        found = so.apply_thresholds(ds.candidates, {c: START_THRESHOLD for c in self.classes})
+        self.filter_error = None
         fn = self.fns.get("my_filter")
         if fn:
             try:
@@ -347,111 +435,147 @@ class App:
         ds.found = found
         ds.score, ds.per, ds.marks = so.evaluate(ds.records, found, ds.classes)
 
-    def _press(self, find):
+    def _press(self):
         t = time.time()
-        self.status.value = '<span class="status">⏳</span>'
+        self.statusbar.value = '<div class="statusbar">⏳ กำลังรัน…</div>'
         try:
             prev = self.train.score
-            self._run(self.train, find)
+            self._run(self.train)
+            if self.test is not None:
+                self._run(self.test)
             self._autosave()
-            self._show_score(prev, time.time() - t)
-            for c in self.classes:
-                v = self.train.per[c]
-                self.f1s[c].value = (f'<div class="f1"><b>{v["f1"]:.2f}</b><br>'
-                                     f'<span>✓{v["tp"]} ✗{v["fp"]} ?{v["fn"]}</span></div>')
+            self._show_result(prev, time.time() - t)
             self.gallery.refresh()
         except Exception as e:
-            self.status.value = f'<span class="err">{html.escape(type(e).__name__ + ": " + str(e))}</span>'
+            self.statusbar.value = f'<div class="statusbar bad">{html.escape(type(e).__name__ + ": " + str(e))}</div>'
 
-    def _show_score(self, prev, secs):
+    def _show_result(self, prev, secs):
         s = self.train.score
         self.best = s if self.best is None else max(self.best, s)
         delta = ""
         if prev is not None and abs(s - prev) > 1e-6:
             delta = f'<span class="{"up" if s > prev else "down"}">{"▲" if s > prev else "▼"}{abs(s - prev):.3f}</span>'
-        self.score_html.value = (f'<div class="k">คะแนนชุดฝึก</div><div class="score">{s:.3f}</div>'
-                                 f'<div class="k">{delta} ดีสุด {self.best:.3f}</div>')
-        flt = "my_filter ✓" if self.fns.get("my_filter") else f"ไม่มี my_filter (ใช้เกณฑ์ {START_THRESHOLD})"
-        msg, err = f'<span class="status">{secs:.1f} วินาที · {flt}</span>', ""
+        self.score_html.value = (f'<div style="text-align:right"><div class="score">{s:.3f}</div>'
+                                 f'<div class="k">{delta} ชุดฝึก · ดีสุด {self.best:.3f}</div></div>')
+
+        problems = [f"prompts.txt บรรทัด {n}: {m}" for n, m in self.prompt_errors]
         if self.script_error:
-            err = f'<span class="err">Script ผิดพลาด — ใช้เกณฑ์ {START_THRESHOLD} แทน</span><div class="errbox">{html.escape(self.script_error)}</div>'
+            problems.append(f"script.py  {self.script_error}  → ใช้เกณฑ์ {START_THRESHOLD} แทน")
         elif self.filter_error:
-            err = f'<span class="err">my_filter ผิดพลาด — ใช้เกณฑ์ {START_THRESHOLD} แทน</span><div class="errbox">{html.escape(self.filter_error)}</div>'
-        self.status.value = err or msg
-        self.script_msg.value = err or '<span class="ok">✓ Script ทำงานได้</span>' 
+            problems.append(f"my_filter  {self.filter_error}  → ใช้เกณฑ์ {START_THRESHOLD} แทน")
+        rows = []
+        for c in self.classes:
+            v = self.train.per[c]
+            rows.append(f'<div><span class="dot" style="background:rgb{COLORS[c]}"></span><span class="c">{c}</span>'
+                        f'<b>{v["f1"]:.2f}</b><span class="muted">✓{v["tp"]} ✗{v["fp"]} ?{v["fn"]}</span></div>')
+        err = "".join(f'<div class="errline">✕ {html.escape(p)}</div>' for p in problems)
+        self.output.value = (f'<div class="ptitle">Output · F1 ของแต่ละแบบ (ชุดฝึก) · ✓ ถูก ✗ ทักผิด ? พลาด</div>'
+                             f'{err}<div class="f1grid">{"".join(rows)}</div>')
+
+        flt = "my_filter ✓" if self.fns.get("my_filter") and not self.filter_error else f"เกณฑ์ {START_THRESHOLD}"
+        test = f" · ชุดทดสอบ {self.test.score:.3f}" if self.test is not None else ""
+        state = f"✕ {len(problems)} ปัญหา" if problems else "✓ ไม่มีปัญหา"
+        self.statusbar.value = (f'<div class="statusbar{" bad" if problems else ""}"><span>{state}</span>'
+                                f'<span>{flt}</span><span>{secs:.1f} วินาที</span>'
+                                f'<span class="r">ชุดฝึก {s:.3f}{test}</span></div>')
 
     # ------------------------------------------------------------ screen
     def show(self):
-        run = _button("▶ ทดสอบ", primary=True)
-        run.on_click(lambda _: self._press(True))
-        self.score_html = _html('<div class="k">คะแนนชุดฝึก</div><div class="score">–</div><div class="k">&nbsp;</div>')
-        self.status = _html('<span class="status">แก้คำค้นแล้วกด ▶</span>')
-        top = W.HBox([self.score_html, run, self.status], layout=W.Layout(align_items="center", grid_gap="18px"))
+        run = _button("▶ Run", primary=True)
+        run.add_class("run-btn")
+        run.tooltip = "Ctrl+Enter"
+        run.on_click(lambda _: self._press())
+        self.score_html = _html('<div class="score">–</div>')
+        self.team_box = W.Text(value=self.team, placeholder="ชื่อทีม", layout=W.Layout(width="160px"))
+        save, load, self.file_msg = self._file_tools()
+        title = W.HBox([_html(HEADER), W.HBox(layout=W.Layout(flex="1")), self.file_msg, self.team_box, save, load,
+                        self.score_html, run],
+                       layout=W.Layout(align_items="center", grid_gap="8px"))
+        title.add_class("titlebar")
 
-        self.gallery = Gallery(lambda: self.train, lambda: self.fns.get("my_draw"))
-        pages = [self._prompt_page(), self._script_page(), self.gallery.box, self._export_page()]
-        titles = ["คำค้น", "Script", "ภาพ", "บันทึก"]
-        if self.has_test:
-            pages.append(self._test_page())
-            titles.append("🔓 ชุดทดสอบ")
-        tab = W.Tab(children=pages)
-        for i, t in enumerate(titles):
-            tab.set_title(i, t)
-        self.tab = tab
-        self.setup_view.layout.display = "none"     # the ready list has done its job
-        display(_root([_html(HEADER), top, tab]))
-        display(HTML(TAB_KEY))
-        self._press(True)
+        self.prompt_area = self._code(self.prompts_text)
+        self.script_area = self._code(self.script)
+        files = {"prompts.txt": self.prompt_area, "script.py": self.script_area}
+        tab_buttons = {}
 
-    def _prompt_page(self):
-        self.areas, self.f1s = {}, {}
-        rows = [_html('<div class="k">คำค้นภาษาอังกฤษ บรรทัดละแบบ · ขึ้นต้นด้วย <code>-</code> = “ไม่ใช่สิ่งนี้” · '
-                      'เกณฑ์ความมั่นใจตั้งในแท็บ Script</div>')]
-        for part in ("bottle", "metal_nut", "screw"):
-            rows.append(_html(f'<div class="part">{so.PART_TH[part]}</div>'))
-            for c in [c for c in self.classes if so.CLASS_INFO[c][0] == part]:
-                name = _html(f'<div class="name"><span class="dot" style="background:rgb{COLORS[c]}"></span>'
-                             f'<span>{so.CLASS_INFO[c][1]}<br><span class="ckey">{c}</span></span></div>')
-                name.layout = W.Layout(width="230px", flex="none")
-                area = W.Textarea(value="\n".join(self.prompts.get(c, [])), placeholder="a scratch on a metal nut",
-                                  layout=W.Layout(flex="1 1 auto", height="54px", width="auto"))
-                f1 = _html('<div class="f1"><b>–</b></div>')
-                f1.layout = W.Layout(width="104px", flex="none")
-                self.areas[c], self.f1s[c] = area, f1
-                row = W.HBox([name, area, f1], layout=W.Layout(align_items="center", grid_gap="12px"))
-                row.add_class("row")
-                rows.append(row)
-        rows.append(_html('<div class="k" style="margin-top:6px">F1 ของแต่ละแบบ · ✓ ถูก ✗ ทักผิด ? พลาด</div>'))
-        return W.VBox(rows)
+        def open_file(name):
+            for n, b in tab_buttons.items():
+                files[n].layout.display = "flex" if n == name else "none"
+                (b.add_class if n == name else b.remove_class)("on")
 
-    def _script_page(self):
-        self.script_area = W.Textarea(value=self.script, layout=W.Layout(width="100%", height="560px"))
-        self.script_area.add_class("siitec-code")
-        self.script_msg = _html()
-        reset = _button("ใช้โค้ดตั้งต้น")
+        for name in files:
+            b = W.Button(description=name, layout=W.Layout(width="auto"))
+            b.on_click(lambda _, n=name: open_file(n))
+            tab_buttons[name] = b
+        reset = _button("โค้ดตั้งต้น")
+        reset.tooltip = "ใส่ script.py ตั้งต้นกลับ"
 
         def do_reset(_):
             if reset.description != "กดอีกครั้งเพื่อยืนยัน":
                 reset.description = "กดอีกครั้งเพื่อยืนยัน"
                 return
-            reset.description = "ใช้โค้ดตั้งต้น"
+            reset.description = "โค้ดตั้งต้น"
             self.script_area.value = SCRIPT_TEMPLATE
-            self._press(False)
+            open_file("script.py")
+            self._press()
 
         reset.on_click(do_reset)
-        return W.VBox([
-            _html('<div class="k">Python + NumPy + OpenCV · <code>my_filter</code> เลือกกรอบ · <code>my_draw</code> วาดภาพในแท็บภาพ · '
-                  'แก้แล้วกด ▶ ทดสอบ · ห้ามเทรนหรือใช้โมเดลอื่น</div>'),
-            self.script_area,
-            W.HBox([self.script_msg, reset], layout=W.Layout(justify_content="space-between", align_items="center")),
-        ], layout=W.Layout(grid_gap="8px"))
+        tool = W.HBox([reset])
+        tool.add_class("tool")
+        bar = W.HBox(list(tab_buttons.values()) + [W.HBox(layout=W.Layout(flex="1")), tool])
+        bar.add_class("tabs")
+        editor = W.VBox([bar, self.prompt_area, self.script_area],
+                        layout=W.Layout(flex="1 1 0", height=f"{EDITOR_H + 35}px"))
+        editor.add_class("pane")
+        open_file("prompts.txt")
 
-    def _export_page(self):
-        self.team_box = W.Text(value=self.team, placeholder="ชื่อทีม", layout=W.Layout(width="280px"))
-        save = _button("ดาวน์โหลดไฟล์", primary=True)
+        sets = [("ชุดฝึก", "train")] + ([("🔓 ชุดทดสอบ", "test")] if self.has_test else [])
+        self.view_set = "train"
+        self.gallery = Gallery(lambda: self.test if self.view_set == "test" else self.train,
+                               lambda: self.fns.get("my_draw"), sets, self._pick_set, EDITOR_H)
+        side = W.VBox([self.gallery.bar, self.gallery.box],
+                      layout=W.Layout(flex="1 1 0", height=f"{EDITOR_H + 35}px"))
+        side.add_class("pane")
+        side.add_class("side")
+        main = W.HBox([editor, side])
+
+        self.output = _html('<div class="ptitle">Output</div>')
+        out = W.VBox([self.output])
+        out.add_class("panel")
+        self.statusbar = _html('<div class="statusbar">พร้อม</div>')
+
+        self.setup_view.layout.display = "none"     # the ready list has done its job
+        display(_root([title, main, out, self.statusbar, self.gallery.jump]))
+        display(HTML(EDITOR_JS))
+        self._press()
+
+    def _pick_set(self, name):
+        """The picture pane's set changed (train / hidden test)."""
+        if name == "test" and self.test is None:
+            self.statusbar.value = '<div class="statusbar">⏳ กำลังเตรียมชุดทดสอบ…</div>'
+            try:
+                self.test = Dataset("test", self.finder, self.folder)
+            except Exception as e:
+                self.statusbar.value = f'<div class="statusbar bad">{html.escape(str(e))}</div>'
+                return
+            self.view_set = name
+            self._press()
+            return
+        self.view_set = name
+        self.gallery.refresh()
+
+    @staticmethod
+    def _code(text):
+        area = W.Textarea(value=text, layout=W.Layout(width="100%", height=f"{EDITOR_H}px"))
+        area.add_class("siitec-code")
+        return area
+
+    def _file_tools(self):
+        save = _button("บันทึก")
+        save.tooltip = "ดาวน์โหลดไฟล์คำค้น + Script ของทีม"
+        load = W.FileUpload(accept=".json", multiple=False, description="เปิด", icon="",
+                            layout=W.Layout(width="auto"))
         msg = _html()
-        up = W.FileUpload(accept=".json", multiple=False, description="เปิดไฟล์เดิม", icon="")
-        up_msg = _html()
 
         def do_save(_):
             team = self.team_box.value.strip()
@@ -460,16 +584,17 @@ class App:
                 return
             self._read_inputs()
             exp = so.make_export(team, self.prompts, self.script, round(self.train.score or 0, 4))
+            exp["prompts_text"] = self.prompts_text
             safe = "".join(ch if ch.isalnum() else "_" for ch in team)[:40] or "team"
             path = Path(f"siitec_round1_{safe}.json")
             path.write_text(json.dumps(exp, ensure_ascii=False, indent=1))
             self._autosave()
-            msg.value = f'<span class="ok">✓ {path.name}</span> <span class="muted">คะแนนชุดฝึก {exp["train_score"]:.3f}</span>'
+            msg.value = f'<span class="ok">✓ {path.name}</span>'
             try:
                 from google.colab import files
                 files.download(str(path))
             except Exception:
-                msg.value += f' · <a href="{path.name}" download style="color:var(--accent)">ดาวน์โหลด</a>'
+                msg.value += f' <a href="{path.name}" download style="color:var(--accent)">ดาวน์โหลด</a>'
 
         def do_load(change):
             files = change["new"]
@@ -478,73 +603,72 @@ class App:
                 return
             try:
                 data = json.loads(bytes(item["content"]).decode("utf-8"))
-                for c in self.classes:
-                    if c in data.get("prompts", {}):
-                        self.areas[c].value = "\n".join(data["prompts"][c])
+                self.prompt_area.value = data.get("prompts_text") or prompts_to_text(data.get("prompts", {}), self.classes)
                 if data.get("script"):
                     self.script_area.value = data["script"]
                 self.team_box.value = data.get("team", self.team_box.value)
-                up_msg.value = '<span class="ok">✓ ได้คำค้นและ Script คืนแล้ว</span>'
-                self._press(True)
+                msg.value = '<span class="ok">✓ เปิดไฟล์แล้ว</span>'
+                self._press()
             except Exception as e:
-                up_msg.value = f'<span class="err">เปิดไม่ได้: {html.escape(str(e))}</span>'
+                msg.value = f'<span class="err">เปิดไม่ได้: {html.escape(str(e))}</span>'
 
         save.on_click(do_save)
-        up.observe(do_load, "value")
-        return W.VBox([
-            _html('<div class="k">ไฟล์เก็บคำค้นและ Script ของทีม — ใช้แนบตอนส่งงานตามช่องทางที่ผู้จัดแจ้ง '
-                  'และใช้เปิดงานต่อเมื่อ Colab หลุด</div>'),
-            W.HBox([self.team_box, save], layout=W.Layout(grid_gap="10px", align_items="center")), msg,
-            W.HBox([up, up_msg], layout=W.Layout(grid_gap="10px", align_items="center", margin="14px 0 0")),
-        ], layout=W.Layout(grid_gap="8px"))
-
-    def _test_page(self):
-        go = _button("▶ รันกับชุดทดสอบ", primary=True)
-        msg = _html('<span class="k">ชุดทดสอบเปิดแล้ว — ลองกับภาพที่ไม่เคยเห็น</span>')
-        holder = W.VBox()
-
-        def run(_):
-            try:
-                if self.test is None:
-                    msg.value = '<span class="status">⏳ กำลังเตรียมชุดทดสอบ…</span>'
-                    self.test = Dataset("test", self.finder, self.folder)
-                    self.test_gallery = Gallery(lambda: self.test, lambda: self.fns.get("my_draw"))
-                    holder.children = [self.test_gallery.box]
-                self._run(self.test, True)
-                msg.value = (f'<div class="k">คะแนนชุดทดสอบ</div><div class="score">{self.test.score:.3f}</div>'
-                             f'<div class="k">ชุดฝึก {self.train.score:.3f}</div>')
-                self.test_gallery.refresh()
-            except Exception as e:
-                msg.value = f'<span class="err">{html.escape(str(e))}</span>'
-
-        go.on_click(run)
-        return W.VBox([W.HBox([go, msg], layout=W.Layout(grid_gap="18px", align_items="center")), holder],
-                      layout=W.Layout(grid_gap="10px"))
+        load.observe(do_load, "value")
+        return save, load, msg
 
 
 class Gallery:
-    """Pictures drawn with the team's my_draw: a page of them, or one at a time with every candidate box."""
+    """The picture pane: a page of pictures drawn with my_draw, or one picture with every candidate box."""
 
-    def __init__(self, get_ds, get_draw):
+    def __init__(self, get_ds, get_draw, sets, on_set, height):
         self.get_ds, self.get_draw, self.page, self.one = get_ds, get_draw, 0, 0
-        self.mode = W.ToggleButtons(options=[("หลายภาพ", "grid"), ("ทีละภาพ", "one")], value="grid")
-        self.mode.style.button_width = "104px"
+        self.mode = "grid"
+        self.seg = {m: W.Button(description=t, layout=W.Layout(width="auto")) for m, t in (("grid", "หลายภาพ"), ("one", "ทีละภาพ"))}
+        for m, b in self.seg.items():
+            b.on_click(lambda _, m=m: self._set_mode(m))
+        seg = W.HBox(list(self.seg.values()))
+        seg.add_class("seg")
+        self.set_pick = W.Dropdown(options=sets, value="train", layout=W.Layout(width="120px",
+                                   display="flex" if len(sets) > 1 else "none"))
+        self.set_pick.observe(lambda ch: on_set(ch["new"]), "value")
         self.pick = W.Dropdown(options=[("ทุกภาพ", "all"), ("มีที่พลาด", "miss"), ("มีที่ทักผิด", "fa"), ("ถูกหมด", "ok"),
                                         ("ขวด", "bottle"), ("น็อต", "metal_nut"), ("สกรู", "screw")],
-                               layout=W.Layout(width="150px"))
+                               layout=W.Layout(width="110px"))
         self.prev, self.next = _button("◀"), _button("▶")
         self.where, self.gal, self.msg = _html(), _html(), _html()
-        self.mode.observe(lambda _: self.refresh(), "value")
         self.pick.observe(lambda _: self._go(0), "value")
         self.prev.on_click(lambda _: self._go(-1, step=True))
         self.next.on_click(lambda _: self._go(1, step=True))
-        bar = W.HBox([self.mode, self.pick, self.prev, self.where, self.next],
-                     layout=W.Layout(grid_gap="8px", align_items="center", flex_flow="row wrap"))
+        self.bar = W.HBox([seg, self.set_pick, self.pick, W.HBox(layout=W.Layout(flex="1")), self.prev, self.where, self.next],
+                          layout=W.Layout(grid_gap="6px"))
+        self.bar.add_class("viewbar")
         self.foot = _html()
-        self.box = W.VBox([bar, self.msg, self.gal, self.foot], layout=W.Layout(grid_gap="8px"))
+        self.box = W.VBox([self.msg, self.gal, self.foot], layout=W.Layout(height=f"{height}px", grid_gap="6px"))
+        self.box.add_class("view")
+        self.jump = W.Text()          # a clicked grid picture arrives here as "<record index>:<time>"
+        self.jump.add_class("jump")
+        self.jump.observe(self._jumped, "value")
+        self._set_mode("grid", refresh=False)
+
+    def _set_mode(self, m, refresh=True):
+        self.mode = m
+        for k, b in self.seg.items():
+            (b.add_class if k == m else b.remove_class)("on")
+        if refresh:
+            self.refresh()
+
+    def _jumped(self, ch):
+        try:
+            i = int(ch["new"].split(":")[0])
+        except ValueError:
+            return
+        pick = self._picked(self.get_ds())
+        if i in pick:
+            self.one = pick.index(i)
+            self._set_mode("one")
 
     def _go(self, n, step=False):
-        if self.mode.value == "grid":
+        if self.mode == "grid":
             self.page = self.page + n if step else n
         else:
             self.one = self.one + n if step else n
@@ -567,19 +691,18 @@ class Gallery:
                 out = np.asarray(draw(img.copy(), [dict(d) for d in ds.found[i]],
                                       [dict(a) for a in ds.records[i]["boxes"]]), np.uint8)
             except Exception as e:
-                self.msg.value = (f'<span class="err">my_draw ผิดพลาด — ใช้แบบตั้งต้น</span>'
-                                  f'<div class="errbox">{html.escape(_err_text(e))}</div>')
+                self.msg.value = (f'<div class="errline">✕ my_draw  {html.escape(_err_text(e))}  → ใช้แบบตั้งต้น</div>')
         if out is None or out.ndim != 3 or out.shape[:2] != img.shape[:2]:
             out = default_draw(img, ds.found[i], ds.records[i]["boxes"])
         return out
 
     def refresh(self):
         ds = self.get_ds()
-        if ds.marks is None:
+        if ds is None or ds.marks is None:
             return
         self.msg.value = ""
         pick = self._picked(ds)
-        if self.mode.value == "one":
+        if self.mode == "one":
             return self._show_one(ds, pick)
         pages = max(1, -(-len(pick) // PER_PAGE))
         self.page = min(max(self.page, 0), pages - 1)
@@ -591,10 +714,10 @@ class Gallery:
             ok, miss, fa = f_hit.count(True), a_hit.count(False), f_hit.count(False)
             marks = (f'<span class="ok">✓{ok}</span>' if ok else "") + (f'<span class="miss">?{miss}</span>' if miss else "") + \
                     (f'<span class="fa">✗{fa}</span>' if fa else "")
-            shots.append(f'<div class="shot" tabindex="0"><img src="data:image/jpeg;base64,{_jpeg_b64(out)}">'
+            shots.append(f'<div class="shot" data-i="{i}"><img src="data:image/jpeg;base64,{_jpeg_b64(out, 360)}">'
                          f'<div class="cap"><span class="fn">{r["file"][:-4]}</span>{marks or "<span class=ok>ปกติ</span>"}</div></div>')
         self.gal.value = f'<div class="gal">{"".join(shots)}</div>' if shots else '<span class="k">ไม่มีภาพ</span>'
-        self.foot.value = '<div class="k">วาดด้วย <code>my_draw</code> · คลิกภาพเพื่อขยาย · ดูรายละเอียดทุกกรอบที่ “ทีละภาพ”</div>'
+        self.foot.value = '<div class="k">วาดด้วย <code>my_draw</code> · คลิกภาพเพื่อดูทุกกรอบของภาพนั้น</div>'
 
     def _show_one(self, ds, pick):
         """One picture: my_draw's drawing with every box numbered, and a table of the candidates."""
@@ -637,7 +760,7 @@ class Gallery:
                 res = '<span class="miss">ตัดตัวถูกทิ้ง</span>' if hit else '<span class="muted">ตัดแล้ว ดี</span>'
             w, h = box[2] - box[0], box[3] - box[1]
             trs.append(f'<tr style="{"" if keep else "opacity:.6"}"><td class="num">{n}</td>'
-                       f'<td><span class="dot" style="display:inline-block;background:rgb{COLORS.get(label, (200, 200, 200))}"></span> '
+                       f'<td><span class="dot" style="background:rgb{COLORS.get(label, (200, 200, 200))}"></span> '
                        f'<span class="ckey">{label}</span></td><td class="num">{score:.3f}</td>'
                        f'<td class="num">{w:.0f}×{h:.0f}</td><td>{"เก็บ" if keep else "ตัด"}</td><td>{res}</td></tr>')
         missed = [a for a, h in zip(r["boxes"], a_hit) if not h]
@@ -647,6 +770,6 @@ class Gallery:
         table = ('<table class="dbg"><tr><th>#</th><th>class</th><th>คะแนน</th><th>ขนาด</th><th>my_filter</th><th>ผล</th></tr>'
                  + "".join(trs) + "</table>" if trs else '<div class="muted">ไม่มีกรอบเลย</div>')
         self.gal.value = (f'<div class="one"><img src="data:image/jpeg;base64,{_jpeg_b64(out, 720)}">'
-                          f'<div>{table}{miss_txt}</div></div>')
+                          f'{table}{miss_txt}</div>')
         self.foot.value = ('<div class="k">ตัวเลขบนภาพตรงกับแถวในตาราง · กรอบเทา = my_filter ตัดทิ้ง · '
-                           '“ตัดตัวถูกทิ้ง” = ลองลดเกณฑ์ของแบบนั้น · ไล่ภาพด้วย ◀ ▶</div>')
+                           '“ตัดตัวถูกทิ้ง” = ลองลดเกณฑ์ของแบบนั้น</div>')
