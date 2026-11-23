@@ -92,6 +92,11 @@ class Finder:
         from transformers.utils import logging as hf_logging
         hf_logging.set_verbosity_error()      # no weight-loading bars or warnings in the notebook
         hf_logging.disable_progress_bar()
+        # The model is public: no token is needed, so the hub's "set a HF_TOKEN" warning is noise.
+        import warnings
+        from huggingface_hub.utils import logging as hub_logging
+        hub_logging.set_verbosity_error()
+        warnings.filterwarnings("ignore", message=".*unauthenticated requests to the HF Hub.*")
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
         self.proc = Owlv2Processor.from_pretrained(MODEL)
