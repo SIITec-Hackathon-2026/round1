@@ -36,7 +36,8 @@ COLORS = {  # class -> RGB, readable on the pictures
     "bottle_broken_large": (255, 99, 71), "bottle_broken_small": (255, 170, 60),
     "bottle_contamination": (190, 120, 255), "metal_nut_bent": (255, 80, 160),
     "metal_nut_color": (60, 200, 255), "metal_nut_flip": (255, 220, 50),
-    "metal_nut_scratch": (120, 255, 120), "screw_defect": (255, 120, 60),
+    "metal_nut_scratch": (120, 255, 120), "hazelnut_crack": (255, 120, 60),
+    "hazelnut_cut": (0, 230, 200), "hazelnut_hole": (255, 255, 255), "hazelnut_print": (160, 160, 255),
 }
 EDITOR_H = 420   # height of a file in the editor, px (the whole screen fits a laptop without scrolling the page)
 SCRIPT_SECONDS = 15     # running script.py itself (imports, constants)
@@ -287,11 +288,14 @@ THRESHOLD = {
     "bottle_broken_large":  0.03,
     "bottle_broken_small":  0.03,
     "bottle_contamination": 0.03,
+    "hazelnut_crack":       0.03,
+    "hazelnut_cut":         0.03,
+    "hazelnut_hole":        0.03,
+    "hazelnut_print":       0.03,
     "metal_nut_bent":       0.03,
     "metal_nut_color":      0.03,
     "metal_nut_flip":       0.03,
     "metal_nut_scratch":    0.03,
-    "screw_defect":         0.03,
 }
 
 
@@ -371,7 +375,7 @@ def my_draw(image, found, answers):
 
 GUIDE = """<div class="guide">
 <h3>เป้าหมาย</h3>
-<p>ให้ AI ชื่อ <b>OWLv2</b> หา<b>จุดเสีย</b>บนชิ้นงาน 3 ชนิด (ขวด · น็อต · สกรู) แยกเป็น 8 แบบ ให้ตรงกับเฉลยมากที่สุด
+<p>ให้ AI ชื่อ <b>OWLv2</b> หา<b>จุดเสีย</b>บนชิ้นงาน 3 ชนิด (ขวด · น็อต · เฮเซลนัท) แยกเป็น 11 แบบ ให้ตรงกับเฉลยมากที่สุด
 OWLv2 หาสิ่งที่ตรงกับ<b>ข้อความ</b>ที่เราพิมพ์ — ไม่ต้องสอนโมเดลใหม่</p>
 
 <h3>ทำ 3 อย่างนี้วนไป</h3>
@@ -390,7 +394,7 @@ OWLv2 หาสิ่งที่ตรงกับ<b>ข้อความ</b>�
 <p>บนภาพ: <b style="color:rgb(40,200,120)">กรอบเขียว = เฉลย</b> (จุดเสียจริง) · <b style="color:rgb(255,140,0)">กรอบส้ม = ที่ AI หาเจอ</b> พร้อมชื่อแบบและคะแนน
 — ส้มทับเขียวคือถูก ส้มที่ไม่มีเขียวคือทักผิด เขียวที่ไม่มีส้มคือพลาด</p>
 <p>แต่ละแบบได้คะแนน <b>F1</b> = 2×ถูก ÷ (2×ถูก + ทักผิด + พลาด) — สูงเมื่อถูกเยอะ และทักผิดกับพลาดน้อย ·
-<b>คะแนนรวม = ค่าเฉลี่ย F1 ของทั้ง 8 แบบ</b> · บางภาพเป็นชิ้นงานปกติ ไม่มีจุดเสีย อย่าทักผิด</p>
+<b>คะแนนรวม = ค่าเฉลี่ย F1 ของทั้ง 11 แบบ</b> · บางภาพเป็นชิ้นงานปกติ ไม่มีจุดเสีย อย่าทักผิด</p>
 
 <h3>ทริค</h3>
 <ul>
@@ -1010,7 +1014,7 @@ class Gallery:
         self.set_pick.observe(lambda ch: on_set(ch["new"]), "value")
         self.pick = W.Dropdown(options=[("แสดงทุกภาพ", "all"), ("เฉพาะภาพที่มีพลาด", "miss"), ("เฉพาะภาพที่มีทักผิด", "fa"),
                                         ("เฉพาะภาพที่ถูกหมด", "ok"), ("เฉพาะขวด", "bottle"), ("เฉพาะน็อต", "metal_nut"),
-                                        ("เฉพาะสกรู", "screw")],
+                                        ("เฉพาะเฮเซลนัท", "hazelnut")],
                                layout=W.Layout(width="150px"))
         self.prev, self.next = _button(""), _button("")
         for b, c in ((self.prev, "ic-prev"), (self.next, "ic-next")):

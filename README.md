@@ -17,7 +17,7 @@
 
 | ไฟล์ | มีอะไร |
 |---|---|
-| `train.zip` ([Releases](https://github.com/SIITec-Hackathon-2026/round1/releases)) | ภาพสำหรับฝึก 217 ภาพ (มีภาพชิ้นงานปกติปนอยู่) + เฉลย `labels.json` — notebook โหลดให้เอง |
+| `train.zip` ([Releases](https://github.com/SIITec-Hackathon-2026/round1/releases)) | ภาพสำหรับฝึก 178 ภาพ (มีภาพชิ้นงานปกติปนอยู่) + เฉลย `labels.json` — notebook โหลดให้เอง |
 | ชุดทดสอบลับ | ไม่แจก — กรรมการรันไฟล์ส่งงานของแต่ละทีมกับชุดนี้ และเปิดเผยหลังประกาศผล |
 
 หน้าจอเป็นแบบ editor: ซ้ายมีแท็บ **วิธีเล่น** (อ่านก่อน) กับสองไฟล์ `prompts.txt` (คำค้น) และ `script.py` (`my_filter` มีตัวอย่างให้แก้ต่อ, `my_draw`) · ขวาคือภาพ · ล่างคือผลและข้อผิดพลาด · กด **Run** หรือ Ctrl+Enter
@@ -36,7 +36,7 @@
 
 ## ที่มาและสัญญาอนุญาตของข้อมูล
 
-ภาพทั้งหมดมาจาก **MVTec AD** (หมวด screw, metal_nut, bottle) © MVTec Software GmbH
+ภาพทั้งหมดมาจาก **MVTec AD** (หมวด hazelnut, metal_nut, bottle) © MVTec Software GmbH
 ใช้ภายใต้ [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) (ข้อความเต็มใน `LICENSE-DATA.txt` ในแต่ละ zip) — ห้ามใช้เชิงพาณิชย์
 
 สิ่งที่เราเปลี่ยนจากต้นฉบับ: แบ่งชุดฝึก/ทดสอบใหม่, แปลง mask เป็นกรอบ (รวมจุดที่อยู่ใกล้กันเป็นกรอบเดียว),

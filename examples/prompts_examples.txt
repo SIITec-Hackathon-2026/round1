@@ -8,11 +8,11 @@ a thin scratch line on metal         # เส้นรอยขีดบาง�
 a scraped mark on a metal surface    # รอยถลอกบนผิวโลหะ
 
 # 2) ขีดหน้าคำ = ไม่ใช่สิ่งนี้ (ใช้กับทุกแบบของชิ้นงานชนิดเดียวกัน)
-[screw_defect]
-a damaged screw                      # สกรูที่เสียหาย
-- a normal screw                     # ไม่ใช่: สกรูปกติ
+[hazelnut_crack]
+a cracked hazelnut shell             # เปลือกเฮเซลนัทแตกร้าว
+- a whole hazelnut                   # ไม่ใช่: เฮเซลนัทที่สมบูรณ์
 
 # 3) หมายเหตุด้วย #: AI ไม่อ่านหลัง #
 [bottle_contamination]
-dirt inside a bottle                 # สิ่งสกปรกในขวด (ลองแล้ว 0.14)
+dirt inside a bottle                 # สิ่งสกปรกในขวด (ลองแล้ว 0.13)
 # a stain on glass                   # คราบบนแก้ว (ปิดไว้ก่อน)

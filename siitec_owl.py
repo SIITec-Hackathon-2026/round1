@@ -33,9 +33,12 @@ CLASS_INFO = {  # class -> (part, Thai description)
     "metal_nut_color": ("metal_nut", "มีสีเปื้อนบนน็อต"),
     "metal_nut_flip": ("metal_nut", "น็อตวางคว่ำผิดด้าน (กรอบคลุมทั้งชิ้น)"),
     "metal_nut_scratch": ("metal_nut", "รอยขีดข่วนบนน็อต"),
-    "screw_defect": ("screw", "สกรูมีตำหนิ ที่หัว คอ เกลียว หรือปลาย"),
+    "hazelnut_crack": ("hazelnut", "เปลือกเฮเซลนัทแตกร้าว"),
+    "hazelnut_cut": ("hazelnut", "เปลือกมีรอยบากหรือรอยตัด"),
+    "hazelnut_hole": ("hazelnut", "เปลือกมีรูเจาะ"),
+    "hazelnut_print": ("hazelnut", "มีรอยหมึกพิมพ์บนเปลือก"),
 }
-PART_TH = {"bottle": "ขวด", "metal_nut": "น็อตโลหะ", "screw": "สกรู"}
+PART_TH = {"bottle": "ขวด", "metal_nut": "น็อตโลหะ", "hazelnut": "เฮเซลนัท"}
 
 
 # ---------------------------------------------------------------- data
