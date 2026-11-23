@@ -1,0 +1,8 @@
+Sample pictures for playground.ipynb, from Wikimedia Commons, resized to 1024 px wide.
+
+street_dogs.jpg - "Pack of dogs with their 'Dog Walker'.JPG" by Rudolph.A.furtado - CC0 - https://commons.wikimedia.org/wiki/File:Pack_of_dogs_with_their_%27Dog_Walker%27.JPG
+street.jpg - "Car-free Play Street (49949246568).jpg" by Jim Griffin - CC0 - https://commons.wikimedia.org/wiki/File:Car-free_Play_Street_(49949246568).jpg
+taxi.jpg - "City-cars-vehicles-street (23699495353).jpg" by www.Pixel.la Free Stock Photos - CC0 - https://commons.wikimedia.org/wiki/File:City-cars-vehicles-street_(23699495353).jpg
+dog_ball.jpg - "Black dog with yellow ball on grass.jpg" by Thegreatmutata - CC0 - https://commons.wikimedia.org/wiki/File:Black_dog_with_yellow_ball_on_grass.jpg
+cat.jpg - "Black cat curled up on a sofa in Newcastle upon Tyne, UK.jpg" by Salwa Farwaneh Dameh - CC0 - https://commons.wikimedia.org/wiki/File:Black_cat_curled_up_on_a_sofa_in_Newcastle_upon_Tyne,_UK.jpg
+fruit_stall.jpg - "Bangkok fruit stall.jpg" by Michael - Public domain - https://commons.wikimedia.org/wiki/File:Bangkok_fruit_stall.jpg

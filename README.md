@@ -6,6 +6,13 @@
 
 เปิด `round1.ipynb` ใน Colab → กด ▶ ที่เซลล์เดียวของโน้ตบุ๊ก (โน้ตบุ๊กขอ T4 GPU ให้เอง)
 
+### อุ่นเครื่องก่อน: ลองเล่น OWLv2
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SIITec-Hackathon-2026/round1/blob/main/playground.ipynb)
+
+`playground.ipynb` — พิมพ์คำ (a person, a dog, a car …) แล้วดูว่า AI หาเจอตรงไหน ในรูปตัวอย่างหรือรูปที่อัปโหลดเอง
+รูปตัวอย่างใน `assets/playground/` มาจาก Wikimedia Commons (CC0 / public domain) ดูเครดิตใน `assets/playground/CREDITS.txt`
+
 ## ข้อมูล
 
 | ไฟล์ | มีอะไร |
