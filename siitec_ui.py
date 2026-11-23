@@ -131,10 +131,10 @@ STYLE = """<style>
 .siitec .tabs .grow{flex:1}
 .siitec .tabs .tool{display:flex;align-items:center;gap:6px;padding:0 8px}
 .siitec .siitec-code{width:100%;flex:none!important}
-.siitec .siitec-code textarea{font-family:'JetBrains Mono','Sarabun',ui-monospace,monospace!important;font-size:13px!important;line-height:19px!important;
+.siitec .siitec-code > textarea{font-family:'JetBrains Mono','Sarabun',ui-monospace,monospace!important;font-size:13px!important;line-height:19px!important;
   background:var(--bg)!important;color:var(--ink)!important;border:none!important;border-radius:0!important;padding:6px 10px!important;
   tab-size:4;white-space:pre;overflow:auto;resize:none;height:100%!important}
-.siitec .siitec-code textarea::selection{background:var(--sel)}
+.siitec .siitec-code > textarea::selection{background:var(--sel)}
 .siitec .gutter{font-family:'JetBrains Mono','Sarabun',monospace;font-size:13px;line-height:19px;color:var(--gutter);text-align:right;
   padding:6px 8px 0 10px;white-space:pre;overflow:hidden;user-select:none;min-width:44px;flex:none;background:var(--bg)}
 .siitec .viewbar{padding:4px 8px;border-bottom:1px solid var(--line);height:35px;flex:none!important;align-items:center}
@@ -152,6 +152,21 @@ STYLE = """<style>
 .siitec .spin svg{animation:siitec-spin 1s linear infinite}
 @keyframes siitec-spin{to{transform:rotate(360deg)}}
 .siitec .icon-only::before{margin-right:0!important}
+/* code colours: VS Code Light Modern / Dark Modern */
+.siitec{--hl-kw:#0000ff;--hl-ctl:#af00db;--hl-str:#a31515;--hl-num:#098658;--hl-com:#008000;--hl-fn:#795e26;--hl-const:#0070c1;--hl-bi:#267f99;--hl-head:#0070c1;--hl-neg:#c72e0f}
+@media (prefers-color-scheme: dark){.siitec{--hl-kw:#569cd6;--hl-ctl:#c586c0;--hl-str:#ce9178;--hl-num:#b5cea8;--hl-com:#6a9955;--hl-fn:#dcdcaa;--hl-const:#4fc1ff;--hl-bi:#4ec9b0;--hl-head:#4fc1ff;--hl-neg:#f48771}}
+.siitec .siitec-code{align-items:stretch!important}
+.siitec .siitec-code > .gutter{align-self:stretch;height:100%}
+.siitec .edwrap{position:relative;flex:1 1 auto;min-width:0;height:100%;overflow:hidden;background:var(--bg)}
+.siitec .edwrap > textarea,.siitec .edwrap > pre.hl{position:absolute;inset:0;margin:0;width:100%!important;height:100%!important;
+  font-family:'JetBrains Mono','Sarabun',ui-monospace,monospace!important;font-size:13px!important;line-height:19px!important;
+  padding:6px 10px!important;border:none!important;tab-size:4;white-space:pre!important;overflow:auto;box-sizing:border-box!important;letter-spacing:0}
+.siitec .edwrap > pre.hl{color:var(--ink);pointer-events:none;overflow:hidden;background:transparent}
+.siitec .edwrap > textarea{color:transparent!important;background:transparent!important;caret-color:var(--ink);z-index:1;resize:none}
+.siitec .edwrap > textarea::selection{background:var(--sel);color:transparent}
+.siitec .hc{color:var(--hl-com)} .siitec .hs{color:var(--hl-str)} .siitec .hk{color:var(--hl-ctl)} .siitec .hk2{color:var(--hl-kw)}
+.siitec .hn{color:var(--hl-num)} .siitec .hb{color:var(--hl-bi)} .siitec .hv{color:var(--hl-const)} .siitec .hf{color:var(--hl-fn)}
+.siitec .hh{color:var(--hl-head);font-weight:600} .siitec .hneg{color:var(--hl-neg);font-weight:700} .siitec .hnegt{color:var(--hl-neg)}
 /* output panel and status bar */
 .siitec .panel{border-top:1px solid var(--line);padding:4px 12px 8px}
 .siitec .ptitle{font-size:11px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;padding:2px 0 4px}
@@ -380,38 +395,93 @@ def parse_prompts(text, classes):
 
 # The editor's keys and line numbers: Tab types four spaces, Ctrl+Enter presses Run,
 # a picture clicked in the grid opens on its own.
-EDITOR_JS = """
+EDITOR_JS = r'''
 <script>
 (function(){
   if (window.__siitecEditor) return; window.__siitecEditor = 1;
-  function nums(t, g){
-    var n = t.value.split('\\n').length;
-    if (g.dataset.n != n){ var s = []; for (var i = 1; i <= n; i++) s.push(i); g.textContent = s.join('\\n'); g.dataset.n = n; }
-    g.scrollTop = t.scrollTop;
+  // Colours come from a highlighted copy of the text drawn under a see-through textarea
+  // (no library, nothing to download): same font, same padding, same scroll.
+  var PY = new RegExp([
+    /(#.*)/.source,                                                        // 1 comment
+    /("{3}[\s\S]*?(?:"{3}|$)|'{3}[\s\S]*?(?:'{3}|$)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)/.source,  // 2 string
+    /(\b(?:def|class|return|if|elif|else|for|while|in|not|and|or|is|import|from|as|continue|break|pass|try|except|finally|with|lambda|global|raise|yield|del|assert)\b)/.source, // 3
+    /(\b(?:True|False|None)\b)/.source,                                    // 4
+    /(\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?\b)/.source,                         // 5 number
+    /(\b(?:print|len|range|int|float|str|list|dict|tuple|set|max|min|abs|sorted|round|sum|enumerate|zip|map|any|all|isinstance)\b)/.source, // 6
+    /(\b[A-Z][A-Z0-9_]+\b)/.source,                                        // 7 CONSTANT
+    /(\b[A-Za-z_]\w*(?=\())/.source                                        // 8 call / def name
+  ].join('|'), 'g');
+  var CLS = [null, 'c', 's', 'k', 'k2', 'n', 'b', 'v', 'f'];
+  function esc(x){ return x.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function py(src){
+    var out = '', last = 0, m;
+    PY.lastIndex = 0;
+    while ((m = PY.exec(src))){
+      if (!m[0]){ PY.lastIndex++; continue; }
+      var k = 1; while (m[k] === undefined) k++;
+      out += esc(src.slice(last, m.index)) + '<span class="h' + CLS[k] + '">' + esc(m[0]) + '</span>';
+      last = PY.lastIndex;
+    }
+    return out + esc(src.slice(last));
+  }
+  function prompts(src){
+    return src.split('\n').map(function(line){
+      var note = '', i = line.indexOf('#');
+      if (i >= 0){ note = '<span class="hc">' + esc(line.slice(i)) + '</span>'; line = line.slice(0, i); }
+      var m = line.match(/^(\s*)(\[[^\]]*\]?)(.*)$/);
+      if (m) return esc(m[1]) + '<span class="hh">' + esc(m[2]) + '</span>' + esc(m[3]) + note;
+      m = line.match(/^(\s*)(-)(.*)$/);
+      if (m) return esc(m[1]) + '<span class="hneg">-</span><span class="hnegt">' + esc(m[3]) + '</span>' + note;
+      return esc(line) + note;
+    }).join('\n');
+  }
+  function runFrom(t){
+    t.dispatchEvent(new Event('input', {bubbles: true}));
+    var b = t.closest('.siitec').querySelector('button.run-btn');
+    if (b) setTimeout(function(){ b.click(); }, 60);
+  }
+  function setup(t){
+    var isPy = !!t.closest('.lang-python');
+    var g = document.createElement('div'); g.className = 'gutter';
+    var wrap = document.createElement('div'); wrap.className = 'edwrap';
+    var pre = document.createElement('pre'); pre.className = 'hl'; pre.setAttribute('aria-hidden', 'true');
+    t.parentElement.style.alignItems = 'stretch';  // the widget row lines items up by baseline
+    t.parentElement.insertBefore(g, t);
+    t.parentElement.insertBefore(wrap, t);
+    wrap.appendChild(pre); wrap.appendChild(t);
+    var shown = null;
+    function draw(){
+      var v = t.value;
+      if (v !== shown){
+        pre.innerHTML = (isPy ? py(v) : prompts(v)) + '\n ';
+        var n = v.split('\n').length;
+        if (g.dataset.n != n){ var a = []; for (var i = 1; i <= n; i++) a.push(i); g.textContent = a.join('\n'); g.dataset.n = n; }
+        shown = v;
+      }
+      pre.scrollTop = t.scrollTop; pre.scrollLeft = t.scrollLeft; g.scrollTop = t.scrollTop;
+    }
+    t.addEventListener('input', draw); t.addEventListener('scroll', draw); draw();
+    setInterval(draw, 300);                     // the text can also change from Python (Open, reset)
+    t.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); runFrom(t); return; }
+      if (e.key === 'Enter' && isPy && !e.shiftKey){          // keep the line's indent, one more after ':'
+        var s0 = t.selectionStart, v0 = t.value, ls = v0.lastIndexOf('\n', s0 - 1) + 1;
+        var ind = v0.slice(ls, s0).match(/^[ \t]*/)[0];
+        if (/:\s*$/.test(v0.slice(ls, s0))) ind += '    ';
+        e.preventDefault();
+        t.setRangeText('\n' + ind, s0, t.selectionEnd, 'end');
+        t.dispatchEvent(new Event('input', {bubbles: true}));
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      t.setRangeText('    ', t.selectionStart, t.selectionEnd, 'end');
+      t.dispatchEvent(new Event('input', {bubbles: true}));
+    });
   }
   function hook(){
-    document.querySelectorAll('.siitec-code textarea:not([data-ed])').forEach(function(t){
-      t.dataset.ed = 1; t.spellcheck = false;
-      var g = document.createElement('div'); g.className = 'gutter';
-      t.parentElement.insertBefore(g, t);
-      var up = function(){ nums(t, g); };
-      t.addEventListener('input', up); t.addEventListener('scroll', up); up();
-      setInterval(up, 400);                      // the value can also change from Python
-      t.addEventListener('keydown', function(e){
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
-          e.preventDefault();
-          t.dispatchEvent(new Event('input', {bubbles: true}));
-          var b = t.closest('.siitec').querySelector('button.run-btn');
-          if (b) setTimeout(function(){ b.click(); }, 60);
-          return;
-        }
-        if (e.key !== 'Tab') return;
-        e.preventDefault();
-        var s = t.selectionStart, v = t.value;
-        t.value = v.slice(0, s) + '    ' + v.slice(t.selectionEnd);
-        t.selectionStart = t.selectionEnd = s + 4;
-        t.dispatchEvent(new Event('input', {bubbles: true}));
-      });
+    document.querySelectorAll('.siitec-code > textarea:not([data-ed])').forEach(function(t){
+      t.dataset.ed = 1; t.spellcheck = false; setup(t);
     });
   }
   document.addEventListener('click', function(e){
@@ -422,11 +492,11 @@ EDITOR_JS = """
     inp.value = s.dataset.i + ':' + Date.now();
     inp.dispatchEvent(new Event('input', {bubbles: true}));
   });
-  new MutationObserver(hook).observe(document.body, {childList: true, subtree: true});
+  setInterval(hook, 500);                      // new screens appear when a cell runs
   hook();
 })();
 </script>
-"""
+'''
 
 
 def _script_line(e):
@@ -696,7 +766,7 @@ class App:
         title.add_class("titlebar")
 
         self.prompt_area = self._code(self.prompts_text)
-        self.script_area = self._code(self.script)
+        self.script_area = self._code(self.script, "python")
         guide = _html(GUIDE)
         guide.layout = W.Layout(width="100%", height=f"{EDITOR_H}px")
         files = {"วิธีเล่น": guide, "prompts.txt": self.prompt_area, "script.py": self.script_area}
@@ -770,9 +840,10 @@ class App:
         self.gallery.refresh()
 
     @staticmethod
-    def _code(text):
+    def _code(text, lang="text"):
         area = W.Textarea(value=text, layout=W.Layout(width="100%", height=f"{EDITOR_H}px"))
         area.add_class("siitec-code")
+        area.add_class(f"lang-{lang}")
         return area
 
     def _file_tools(self):
