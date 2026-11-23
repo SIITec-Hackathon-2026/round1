@@ -38,7 +38,7 @@ COLORS = {  # class -> RGB, readable on the pictures
     "metal_nut_color": (60, 200, 255), "metal_nut_flip": (255, 220, 50),
     "metal_nut_scratch": (120, 255, 120), "screw_defect": (255, 120, 60),
 }
-EDITOR_H = 560   # height of a file in the editor, px
+EDITOR_H = 420   # height of a file in the editor, px (the whole screen fits a laptop without scrolling the page)
 SCRIPT_SECONDS = 15     # running script.py itself (imports, constants)
 FILTER_SECONDS = 120    # my_filter over every picture
 DRAW_SECONDS = 20       # my_draw over one page of pictures
@@ -49,6 +49,10 @@ ICONS = {  # Lucide line icons (lucide.dev, ISC licence, see below): the inside 
     "check": '<path d="M20 6 9 17l-5-5"/>',
     "x": '<path d="M18 6 6 18"/> <path d="m6 6 12 12"/>',
     "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/> <path d="M12 9v4"/> <path d="M12 17h.01"/>',
+    "layout-grid": '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>'
+                   '<rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    "image": '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/>'
+             '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
     "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
     "arrow-up": '<path d="m5 12 7-7 7 7"/> <path d="M12 19V5"/>',
     "arrow-down": '<path d="M12 5v14"/> <path d="m19 12-7 7-7-7"/>',
@@ -129,6 +133,11 @@ STYLE = """<style>
   border-top:1px solid transparent!important;padding:0 14px!important;color:var(--muted)!important;font-family:'JetBrains Mono','Sarabun',monospace!important;font-size:12.5px!important}
 .siitec .tabs button.on{background:var(--bg)!important;color:var(--ink)!important;border-top-color:var(--accent)!important}
 .siitec .tabs .grow{flex:1}
+.siitec .pane{position:relative}
+.siitec .ask{position:absolute;left:50%;top:90px;transform:translateX(-50%);width:380px;max-width:90%;z-index:5;
+  background:var(--bg);border:1px solid var(--fieldline);border-radius:4px;padding:14px 16px 12px;box-shadow:0 6px 24px rgba(0,0,0,.35);gap:10px}
+.siitec .ask .ask-t{font-weight:600;font-size:14.5px;margin-bottom:4px}
+.siitec .ask .ask-d{font-size:13px;color:var(--muted);line-height:1.55}
 .siitec .tabs .tool{display:flex;align-items:center;gap:6px;padding:0 8px}
 .siitec .siitec-code{width:100%;flex:none!important}
 .siitec .siitec-code > textarea{font-family:'JetBrains Mono','Sarabun',ui-monospace,monospace!important;font-size:13px!important;line-height:19px!important;
@@ -137,7 +146,7 @@ STYLE = """<style>
 .siitec .siitec-code > textarea::selection{background:var(--sel)}
 .siitec .gutter{font-family:'JetBrains Mono','Sarabun',monospace;font-size:13px;line-height:19px;color:var(--gutter);text-align:right;
   padding:6px 8px 0 10px;white-space:pre;overflow:hidden;user-select:none;min-width:44px;flex:none;background:var(--bg)}
-.siitec .viewbar{padding:4px 8px;border-bottom:1px solid var(--line);height:35px;flex:none!important;align-items:center}
+.siitec .viewbar{padding:4px 8px;border-bottom:1px solid var(--line);min-height:35px;flex:none!important;align-items:center;flex-wrap:wrap;row-gap:4px}
 .siitec .view{overflow:auto;padding:8px}
 .siitec .seg button{border-radius:0!important;margin:0!important}
 .siitec .seg button+button{border-left:none!important}
@@ -147,6 +156,11 @@ STYLE = """<style>
 .siitec .guide p,.siitec .guide ul,.siitec .guide ol{margin:2px 0 6px}
 .siitec .guide li{margin:2px 0}
 .siitec .guide code{background:var(--field);padding:0 4px;border-radius:2px;white-space:nowrap}
+.siitec .legend{display:flex;gap:10px;align-items:center;font-size:12.5px;color:var(--muted);white-space:nowrap;padding-left:4px}
+.siitec .legend span{display:inline-flex;align-items:center;gap:4px}
+.siitec .legend .sw{display:inline-block;width:12px;height:10px;border:2px solid;box-sizing:border-box}
+.siitec .legend .ans{border-color:rgb(40,200,120);outline:1px solid #fff}
+.siitec .legend .got{border-color:rgb(255,140,0)}
 .siitec .ic{display:inline-flex;vertical-align:-2px;margin-right:1px}
 .siitec .ic svg{display:block}
 .siitec .spin svg{animation:siitec-spin 1s linear infinite}
@@ -171,7 +185,7 @@ STYLE = """<style>
 .siitec .panel{border-top:1px solid var(--line);padding:4px 12px 8px}
 .siitec .ptitle{font-size:11px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;padding:2px 0 4px}
 .siitec .f1grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));column-gap:22px;font-family:'JetBrains Mono','Sarabun',monospace;font-size:12.5px}
-.siitec .f1grid div{display:flex;gap:8px;align-items:center;white-space:nowrap}
+.siitec .f1grid div{display:flex;gap:8px;align-items:center;white-space:nowrap;line-height:20px}
 .siitec .f1grid .c{overflow:hidden;text-overflow:ellipsis;flex:1}
 .siitec .statusbar{background:var(--status);color:#fff;font-size:12px;padding:0 10px;height:22px;display:flex;align-items:center;gap:16px;white-space:nowrap;overflow:hidden}
 .siitec .statusbar.bad{background:var(--status-bad)}
@@ -230,8 +244,28 @@ HEADER = (f'<div class="hdr">{_logo("kmitl.png", "KMITL")}{_logo("siitec.png", "
 
 
 BUTTON_ICONS = {"run-btn": "play", "ic-save": "save", "ic-open": "folder-open", "ic-reset": "rotate-ccw",
-                "ic-prev": "chevron-left", "ic-next": "chevron-right"}
+                "ic-prev": "chevron-left", "ic-next": "chevron-right",
+                "ic-grid": "layout-grid", "ic-one": "image"}
 STYLE = STYLE.replace("</style>", "\n".join(_icon_css(c, n) for c, n in BUTTON_ICONS.items()) + "\n</style>")
+
+# While a run is going: Run is greyed out and its icon spins, the pictures and the output fade,
+# and a spinner sits in the middle of the pictures.
+_SPIN_URI = urllib.parse.quote(_svg("loader-circle", 36).replace("currentColor", "black"))
+BUSY_CSS = (
+    _icon_css("run-btn.running", "loader-circle").replace("::before{", "::before{animation:siitec-spin 1s linear infinite;")
+    + "\n.siitec button.run-btn:disabled{opacity:.75;cursor:progress!important;filter:none!important}"
+    "\n.siitec .side>*,.siitec .panel>*{transition:opacity .15s}"
+    "\n.siitec .busy{pointer-events:none;cursor:progress}"
+    "\n.siitec .busy>*{opacity:.4}"
+    "\n.siitec .side{position:relative}"
+    "\n.siitec .side.busy::before{content:'';position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;"
+    "border-radius:50%;background:var(--bg);border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:2}"
+    "\n.siitec .side.busy::after{content:'';position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;"
+    "background:var(--accent);animation:siitec-spin 1s linear infinite;z-index:3;"
+    f"-webkit-mask:url(\"data:image/svg+xml,{_SPIN_URI}\") center/contain no-repeat;"
+    f"mask:url(\"data:image/svg+xml,{_SPIN_URI}\") center/contain no-repeat}}"
+)
+STYLE = STYLE.replace("</style>", BUSY_CSS + "\n</style>")
 
 
 def _html(s=""):
@@ -353,13 +387,15 @@ OWLv2 หาสิ่งที่ตรงกับ<b>ข้อความ</b>�
 <p><span class="ok">{ok} ถูก</span> กรอบทับจุดเสียจริง (ทับกันอย่างน้อย 30%) และชื่อแบบตรง ·
 <span class="fa">{fa} ทักผิด</span> กรอบที่ตรงนั้นไม่มีจุดเสียแบบนั้น ·
 <span class="miss">{miss} พลาด</span> จุดเสียที่ไม่มีกรอบไปเจอ</p>
+<p>บนภาพ: <b style="color:rgb(40,200,120)">กรอบเขียว = เฉลย</b> (จุดเสียจริง) · <b style="color:rgb(255,140,0)">กรอบส้ม = ที่ AI หาเจอ</b> พร้อมชื่อแบบและคะแนน
+— ส้มทับเขียวคือถูก ส้มที่ไม่มีเขียวคือทักผิด เขียวที่ไม่มีส้มคือพลาด</p>
 <p>แต่ละแบบได้คะแนน <b>F1</b> = 2×ถูก ÷ (2×ถูก + ทักผิด + พลาด) — สูงเมื่อถูกเยอะ และทักผิดกับพลาดน้อย ·
 <b>คะแนนรวม = ค่าเฉลี่ย F1 ของทั้ง 8 แบบ</b> · บางภาพเป็นชิ้นงานปกติ ไม่มีจุดเสีย อย่าทักผิด</p>
 
 <h3>ทริค</h3>
 <ul>
-<li>ช่องเลือกเหนือภาพ: <b>มีที่พลาด</b> / <b>มีที่ทักผิด</b> — ดูว่าพลาดตรงไหน</li>
-<li>คลิกภาพ (หรือ <b>ทีละภาพ</b>) เห็นทุกกรอบที่ AI เสนอพร้อมคะแนน — ใช้ตั้งเกณฑ์ใน <code>THRESHOLD</code></li>
+<li>ช่องเลือกเหนือภาพ: <b>เฉพาะภาพที่มีพลาด</b> / <b>เฉพาะภาพที่มีทักผิด</b> — ดูว่าพลาดตรงไหน</li>
+<li>คลิกภาพ (หรือ <b>ดูทีละภาพ</b>) เห็นทุกกรอบที่ AI เสนอพร้อมคะแนน — ใช้ตั้งเกณฑ์ใน <code>THRESHOLD</code></li>
 <li>คำค้นสั้น ชัด เป็นภาษาอังกฤษ ได้ผลดีกว่าประโยคยาว (เกิน 14 คำถูกตัด)</li>
 <li>เขียน <code>print(...)</code> ใน my_filter ได้ ผลขึ้นในแถบ Output ด้านล่าง</li>
 <li>แก้พังไม่ต้องกลัว: ข้อผิดพลาดขึ้นในแถบ Output พร้อมเลขบรรทัด · ปุ่ม <b>โค้ดตั้งต้น</b> เอา script.py แบบแรกกลับมา</li>
@@ -716,8 +752,19 @@ class App:
         ds.found = found
         ds.score, ds.per, ds.marks = so.evaluate(ds.records, found, ds.classes)
 
+    def _busy(self, on):
+        """Run greyed out and spinning, the results faded, while a run is going."""
+        self.run_button.disabled = on
+        self.run_button.description = "กำลังรัน" if on else "Run"
+        (self.run_button.add_class if on else self.run_button.remove_class)("running")
+        for w in (self.side, self.out_panel):
+            (w.add_class if on else w.remove_class)("busy")
+
     def _press(self):
+        if self.run_button.disabled:      # a second press while running (Ctrl+Enter) does nothing
+            return
         t = time.time()
+        self._busy(True)
         self.statusbar.value = f'<div class="statusbar">{_ic("loader-circle", "spin")} กำลังรัน…</div>'
         try:
             prev = self.train.score
@@ -729,6 +776,8 @@ class App:
             self.gallery.refresh()
         except (Exception, KeyboardInterrupt) as e:
             self.statusbar.value = f'<div class="statusbar bad">{_ic("circle-x")} {html.escape(_team_error(e))}</div>'
+        finally:
+            self._busy(False)
 
     def _show_result(self, prev, secs):
         s = self.train.score
@@ -777,6 +826,7 @@ class App:
         run.add_class("run-btn")
         run.tooltip = "Ctrl+Enter"
         run.on_click(lambda _: self._press())
+        self.run_button = run
         self.score_html = _html('<div class="score">–</div>')
         self.team_box = W.Text(value=self.team, placeholder="ชื่อทีม", layout=W.Layout(width="160px"))
         save, load, self.file_msg = self._file_tools()
@@ -806,21 +856,32 @@ class App:
         reset.add_class("ic-reset")
         reset.tooltip = "ใส่ script.py ตั้งต้นกลับ"
 
-        def do_reset(_):
-            if reset.description != "กดอีกครั้งเพื่อยืนยัน":
-                reset.description = "กดอีกครั้งเพื่อยืนยัน"
-                return
-            reset.description = "โค้ดตั้งต้น"
-            self.script_area.value = SCRIPT_TEMPLATE
+        # asks first: a card over the editor, since the team's own script.py is lost
+        yes, no = _button("ใส่โค้ดตั้งต้น", primary=True), _button("ยกเลิก")
+        ask = W.VBox([_html('<div class="ask-t">ใส่ script.py ตั้งต้นกลับ?</div>'
+                            '<div class="ask-d">โค้ดที่แก้ไว้ใน script.py จะหายไป (prompts.txt ไม่เปลี่ยน)<br>'
+                            'ถ้าอยากเก็บไว้ กด <b>บันทึก</b> ก่อน</div>'),
+                      W.HBox([no, yes], layout=W.Layout(justify_content="flex-end", grid_gap="8px"))],
+                     layout=W.Layout(display="none"))
+        ask.add_class("ask")
+
+        def ask_reset(_):
             open_file("script.py")
+            ask.layout.display = "flex"
+
+        def do_reset(_):
+            ask.layout.display = "none"
+            self.script_area.value = SCRIPT_TEMPLATE
             self._press()
 
-        reset.on_click(do_reset)
+        reset.on_click(ask_reset)
+        yes.on_click(do_reset)
+        no.on_click(lambda _: setattr(ask.layout, "display", "none"))
         tool = W.HBox([reset])
         tool.add_class("tool")
         bar = W.HBox(list(tab_buttons.values()) + [W.HBox(layout=W.Layout(flex="1")), tool])
         bar.add_class("tabs")
-        editor = W.VBox([bar, guide, self.prompt_area, self.script_area],
+        editor = W.VBox([bar, guide, self.prompt_area, self.script_area, ask],
                         layout=W.Layout(flex="1 1 0", height=f"{EDITOR_H + 35}px"))
         editor.add_class("pane")
         open_file("prompts.txt" if self.first_run_done else "วิธีเล่น")
@@ -833,11 +894,13 @@ class App:
                       layout=W.Layout(flex="1 1 0", height=f"{EDITOR_H + 35}px"))
         side.add_class("pane")
         side.add_class("side")
+        self.side = side
         main = W.HBox([editor, side])
 
         self.output = _html('<div class="ptitle">Output</div>')
         out = W.VBox([self.file_msg, self.output])
         out.add_class("panel")
+        self.out_panel = out
         self.statusbar = _html('<div class="statusbar">พร้อม</div>')
 
         self.setup_view.layout.display = "none"     # the ready list has done its job
@@ -935,17 +998,19 @@ class Gallery:
         self.get_ds, self.get_draw, self.page, self.one = get_ds, get_draw, 0, 0
         self.draw_problem, self.printed = None, _Printed()
         self.mode = "grid"
-        self.seg = {m: W.Button(description=t, layout=W.Layout(width="auto")) for m, t in (("grid", "หลายภาพ"), ("one", "ทีละภาพ"))}
+        self.seg = {m: W.Button(description=t, layout=W.Layout(width="auto")) for m, t in (("grid", "ภาพรวม"), ("one", "ดูทีละภาพ"))}
         for m, b in self.seg.items():
+            b.add_class("ic-" + m)
             b.on_click(lambda _, m=m: self._set_mode(m))
         seg = W.HBox(list(self.seg.values()))
         seg.add_class("seg")
         self.set_pick = W.Dropdown(options=sets, value="train", layout=W.Layout(width="104px",
                                    display="flex" if len(sets) > 1 else "none"))
         self.set_pick.observe(lambda ch: on_set(ch["new"]), "value")
-        self.pick = W.Dropdown(options=[("ทุกภาพ", "all"), ("มีที่พลาด", "miss"), ("มีที่ทักผิด", "fa"), ("ถูกหมด", "ok"),
-                                        ("ขวด", "bottle"), ("น็อต", "metal_nut"), ("สกรู", "screw")],
-                               layout=W.Layout(width="100px"))
+        self.pick = W.Dropdown(options=[("แสดงทุกภาพ", "all"), ("เฉพาะภาพที่มีพลาด", "miss"), ("เฉพาะภาพที่มีทักผิด", "fa"),
+                                        ("เฉพาะภาพที่ถูกหมด", "ok"), ("เฉพาะขวด", "bottle"), ("เฉพาะน็อต", "metal_nut"),
+                                        ("เฉพาะสกรู", "screw")],
+                               layout=W.Layout(width="150px"))
         self.prev, self.next = _button(""), _button("")
         for b, c in ((self.prev, "ic-prev"), (self.next, "ic-next")):
             b.add_class(c)
@@ -954,11 +1019,14 @@ class Gallery:
         self.pick.observe(lambda _: self._go(0), "value")
         self.prev.on_click(lambda _: self._go(-1, step=True))
         self.next.on_click(lambda _: self._go(1, step=True))
-        self.bar = W.HBox([seg, self.set_pick, self.pick, W.HBox(layout=W.Layout(flex="1")), self.prev, self.where, self.next],
+        # what the two box colours of the starting drawing mean (my_draw's template draws the same)
+        self.legend = _html('<div class="legend"><span><i class="sw ans"></i>เฉลย</span><span><i class="sw got"></i>AI หาเจอ</span></div>')
+        pager = W.HBox([self.prev, self.where, self.next], layout=W.Layout(grid_gap="6px", align_items="center"))
+        self.bar = W.HBox([seg, self.set_pick, self.pick, self.legend, W.HBox(layout=W.Layout(flex="1")), pager],
                           layout=W.Layout(grid_gap="6px"))
         self.bar.add_class("viewbar")
         self.foot = _html()
-        self.box = W.VBox([self.msg, self.gal, self.foot], layout=W.Layout(height=f"{height}px", grid_gap="6px"))
+        self.box = W.VBox([self.msg, self.gal, self.foot], layout=W.Layout(flex="1 1 0", min_height="0", grid_gap="6px"))
         self.box.add_class("view")
         self.jump = W.Text()          # a clicked grid picture arrives here as "<record index>:<time>"
         self.jump.add_class("jump")
