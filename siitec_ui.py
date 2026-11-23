@@ -2,7 +2,7 @@
 
 App() gets everything ready (GPU, data, model, picture features) and app.show()
 draws the screen: the team's two files (prompts.txt, script.py) on the left, the
-pictures on the right, the output panel and a status bar below. ▶ Run (or Ctrl+Enter
+pictures on the right, the output panel and a status bar below. Run (or Ctrl+Enter
 in a file) runs both files again.
 """
 import base64
@@ -16,6 +16,7 @@ import threading
 import time
 import traceback
 import unicodedata
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -42,6 +43,49 @@ SCRIPT_SECONDS = 15     # running script.py itself (imports, constants)
 FILTER_SECONDS = 120    # my_filter over every picture
 DRAW_SECONDS = 20       # my_draw over one page of pictures
 MAX_PROMPT_TOKENS = 16  # OWLv2 reads no more of a prompt
+
+ICONS = {  # Lucide line icons (lucide.dev, ISC licence, see below): the inside of each 24x24 SVG
+    "play": '<polygon points="6 3 20 12 6 21 6 3"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "x": '<path d="M18 6 6 18"/> <path d="m6 6 12 12"/>',
+    "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/> <path d="M12 9v4"/> <path d="M12 17h.01"/>',
+    "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    "arrow-up": '<path d="m5 12 7-7 7 7"/> <path d="M12 19V5"/>',
+    "arrow-down": '<path d="M12 5v14"/> <path d="m19 12-7 7-7-7"/>',
+    "save": '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+    "folder-open": '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+    "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/> <path d="M3 3v5h5"/>',
+    "circle-check": '<circle cx="12" cy="12" r="10"/> <path d="m9 12 2 2 4-4"/>',
+    "circle-x": '<circle cx="12" cy="12" r="10"/> <path d="m15 9-6 6"/> <path d="m9 9 6 6"/>',
+    "circle-help": '<circle cx="12" cy="12" r="10"/> <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/> <path d="M12 17h.01"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+}
+# Lucide ISC licence: Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of
+# Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022. Permission to use,
+# copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted,
+# provided that the above copyright notice and this permission notice appear in all copies.
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE.
+
+
+def _svg(name, size=14):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" '
+            f'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{ICONS[name]}</svg>')
+
+
+def _ic(name, cls=""):
+    """An icon inline with text."""
+    return f'<span class="ic {cls}">{_svg(name)}</span>'
+
+
+def _icon_css(cls, name):
+    """CSS that puts an icon before a button's text (buttons hold plain text only)."""
+    uri = urllib.parse.quote(_svg(name).replace("currentColor", "black"))
+    return (f".siitec .{cls}::before{{content:'';display:inline-block;width:14px;height:14px;margin-right:6px;"
+            f"vertical-align:-2px;background:currentColor;-webkit-mask:url(\"data:image/svg+xml,{uri}\") center/contain no-repeat;"
+            f"mask:url(\"data:image/svg+xml,{uri}\") center/contain no-repeat}}")
+
+
 
 # Flat editor look: Dark Modern / Light Modern colours, no gradients, square corners
 STYLE = """<style>
@@ -98,6 +142,16 @@ STYLE = """<style>
 .siitec .seg button{border-radius:0!important;margin:0!important}
 .siitec .seg button+button{border-left:none!important}
 .siitec .seg button.on{background:var(--accent)!important;color:var(--on-accent)!important;border-color:var(--accent)!important}
+.siitec .guide{height:100%;overflow:auto;padding:10px 18px 18px;font-size:14px;line-height:1.6}
+.siitec .guide h3{font-size:14.5px;margin:12px 0 4px;color:var(--accent)}
+.siitec .guide p,.siitec .guide ul,.siitec .guide ol{margin:2px 0 6px}
+.siitec .guide li{margin:2px 0}
+.siitec .guide code{background:var(--field);padding:0 4px;border-radius:2px;white-space:nowrap}
+.siitec .ic{display:inline-flex;vertical-align:-2px;margin-right:1px}
+.siitec .ic svg{display:block}
+.siitec .spin svg{animation:siitec-spin 1s linear infinite}
+@keyframes siitec-spin{to{transform:rotate(360deg)}}
+.siitec .icon-only::before{margin-right:0!important}
 /* output panel and status bar */
 .siitec .panel{border-top:1px solid var(--line);padding:4px 12px 8px}
 .siitec .ptitle{font-size:11px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;padding:2px 0 4px}
@@ -160,6 +214,11 @@ HEADER = (f'<div class="hdr">{_logo("kmitl.png", "KMITL")}{_logo("siitec.png", "
           '<span class="t1">SIITec Hackathon 2569</span><span class="t2">· รอบคัดเลือก</span></div>')
 
 
+BUTTON_ICONS = {"run-btn": "play", "ic-save": "save", "ic-open": "folder-open", "ic-reset": "rotate-ccw",
+                "ic-prev": "chevron-left", "ic-next": "chevron-right"}
+STYLE = STYLE.replace("</style>", "\n".join(_icon_css(c, n) for c, n in BUTTON_ICONS.items()) + "\n</style>")
+
+
 def _html(s=""):
     return W.HTML(s)
 
@@ -187,19 +246,37 @@ THRESHOLD = {
 }
 
 
+# ตัวเลขสำหรับ my_filter — ลองปรับแล้วกด Run ดูว่าคะแนนขึ้นหรือลง
+MIN_SIZE = 0.001    # กรอบเล็กกว่านี้ ตัดทิ้ง (สัดส่วนของพื้นที่ภาพ 0 ถึง 1)
+MAX_SIZE = 0.9      # กรอบใหญ่กว่านี้ ตัดทิ้ง (ยกเว้นน็อตคว่ำ)
+MAX_BOXES = 10      # แต่ละภาพเก็บไม่เกินกี่กรอบ (คะแนนสูงก่อน)
+
+
 def my_filter(image, detections):
-    """เลือกกรอบที่จะเก็บไว้
+    """เลือกกรอบที่จะเก็บไว้ — เรียกทีละภาพ
     image      : ภาพ (numpy RGB  สูง x กว้าง x 3)
     detections : [{"label": "metal_nut_bent", "score": 0.31, "box": [x1, y1, x2, y2]}, ...]
+    คืนค่า     : list ของกรอบที่เก็บ (หน้าตาเหมือน detections)
     """
     h, w = image.shape[:2]
     keep = []
     for d in detections:
-        if d["score"] < THRESHOLD[d["label"]]:
+        x1, y1, x2, y2 = d["box"]
+        size = (x2 - x1) * (y2 - y1) / (w * h)       # กรอบนี้ใหญ่แค่ไหน เทียบกับทั้งภาพ
+
+        if d["score"] < THRESHOLD[d["label"]]:       # 1) คะแนนต่ำกว่าเกณฑ์ของแบบนั้น
             continue
-        # ไอเดีย: ตัดกรอบเล็ก/ใหญ่ผิดปกติ · ตัดกรอบนอกตัวชิ้นงาน · ภาพละไม่เกินกี่กรอบ
+        if size < MIN_SIZE:                          # 2) กรอบเล็กจิ๋ว
+            continue
+        if size > MAX_SIZE and d["label"] != "metal_nut_flip":   # 3) กรอบใหญ่เกือบทั้งภาพ
+            continue
         keep.append(d)
-    return keep
+
+    keep.sort(key=lambda d: d["score"], reverse=True)    # 4) คะแนนมากก่อน
+    return keep[:MAX_BOXES]                              #    แล้วเก็บแค่ MAX_BOXES กรอบแรก
+
+    # ไอเดียต่อ: ภาพละแบบเดียว? · ดูสีในกรอบ image[int(y1):int(y2), int(x1):int(x2)]
+    #           · ตัดกรอบที่อยู่บนพื้นหลัง · เกณฑ์ต่างกันตามขนาดกรอบ
 
 
 def my_draw(image, found, answers):
@@ -221,6 +298,47 @@ def my_draw(image, found, answers):
                     t / 3, color, max(1, t // 2), cv2.LINE_AA)
     return img
 '''
+
+GUIDE = """<div class="guide">
+<h3>เป้าหมาย</h3>
+<p>ให้ AI ชื่อ <b>OWLv2</b> หา<b>จุดเสีย</b>บนชิ้นงาน 3 ชนิด (ขวด · น็อต · สกรู) แยกเป็น 8 แบบ ให้ตรงกับเฉลยมากที่สุด
+OWLv2 หาสิ่งที่ตรงกับ<b>ข้อความ</b>ที่เราพิมพ์ — ไม่ต้องสอนโมเดลใหม่</p>
+
+<h3>ทำ 3 อย่างนี้วนไป</h3>
+<ol>
+<li><b>prompts.txt</b> — พิมพ์คำอธิบายจุดเสียเป็นภาษาอังกฤษ บรรทัดละคำค้น ใต้ <code>[ชื่อแบบ]</code>
+  เช่น <code>a scratch on a metal nut</code> · ขึ้นต้นด้วย <code>-</code> แปลว่า "ไม่ใช่สิ่งนี้"</li>
+<li><b>script.py</b> — <code>my_filter</code> เลือกว่ากรอบไหนเก็บ กรอบไหนตัด (มีตัวอย่างให้แก้ต่อ) ·
+  <code>my_draw</code> วาดผลบนภาพ (ไม่มีผลกับคะแนน)</li>
+<li>กด <b>Run</b> หรือ <b>Ctrl+Enter</b> → ดูคะแนนมุมขวาบน (เต็ม 1.000) และดูภาพทางขวา</li>
+</ol>
+
+<h3>คะแนนคิดอย่างไร</h3>
+<p><span class="ok">{ok} ถูก</span> กรอบทับจุดเสียจริง (ทับกันอย่างน้อย 30%) และชื่อแบบตรง ·
+<span class="fa">{fa} ทักผิด</span> กรอบที่ตรงนั้นไม่มีจุดเสียแบบนั้น ·
+<span class="miss">{miss} พลาด</span> จุดเสียที่ไม่มีกรอบไปเจอ</p>
+<p>แต่ละแบบได้คะแนน <b>F1</b> = 2×ถูก ÷ (2×ถูก + ทักผิด + พลาด) — สูงเมื่อถูกเยอะ และทักผิดกับพลาดน้อย ·
+<b>คะแนนรวม = ค่าเฉลี่ย F1 ของทั้ง 8 แบบ</b> · บางภาพเป็นชิ้นงานปกติ ไม่มีจุดเสีย อย่าทักผิด</p>
+
+<h3>ทริค</h3>
+<ul>
+<li>ช่องเลือกเหนือภาพ: <b>มีที่พลาด</b> / <b>มีที่ทักผิด</b> — ดูว่าพลาดตรงไหน</li>
+<li>คลิกภาพ (หรือ <b>ทีละภาพ</b>) เห็นทุกกรอบที่ AI เสนอพร้อมคะแนน — ใช้ตั้งเกณฑ์ใน <code>THRESHOLD</code></li>
+<li>คำค้นสั้น ชัด เป็นภาษาอังกฤษ ได้ผลดีกว่าประโยคยาว (เกิน 14 คำถูกตัด)</li>
+<li>เขียน <code>print(...)</code> ใน my_filter ได้ ผลขึ้นในแถบ Output ด้านล่าง</li>
+<li>แก้พังไม่ต้องกลัว: ข้อผิดพลาดขึ้นในแถบ Output พร้อมเลขบรรทัด · ปุ่ม <b>โค้ดตั้งต้น</b> เอา script.py แบบแรกกลับมา</li>
+</ul>
+
+<h3>กติกา</h3>
+<ul>
+<li>ใช้ได้เฉพาะผลจาก OWLv2 กับ Python / NumPy / OpenCV — ห้ามเทรนโมเดล ห้ามใช้โมเดลอื่น</li>
+<li>กรรมการรันคำค้น + my_filter ของทีมกับ<b>ชุดภาพลับ</b>ที่ไม่เคยเห็น — อย่าปรับให้จำเฉพาะชุดฝึก</li>
+</ul>
+
+<h3>ส่งงาน</h3>
+<p>ใส่<b>ชื่อทีม</b> → กด <b>บันทึก</b> ได้ไฟล์ <code>.json</code> → ส่งตามช่องทางที่ผู้จัดแจ้ง ·
+ปุ่ม <b>เปิด</b> โหลดไฟล์นั้นกลับมาทำต่อ (งานถูกเก็บอัตโนมัติทุกครั้งที่กด Run ด้วย)</p>
+</div>""".replace("{ok}", _ic("check")).replace("{fa}", _ic("x")).replace("{miss}", _ic("circle-help"))
 
 PROMPTS_HEAD = """# คำค้นภาษาอังกฤษ บรรทัดละแบบ ใต้ [ชื่อแบบ]
 # ขึ้นต้นด้วย -  = "ไม่ใช่สิ่งนี้"    ·    หลัง # = หมายเหตุ ไม่ถูกใช้
@@ -260,7 +378,7 @@ def parse_prompts(text, classes):
     return prompts, errors
 
 
-# The editor's keys and line numbers: Tab types four spaces, Ctrl+Enter presses ▶ Run,
+# The editor's keys and line numbers: Tab types four spaces, Ctrl+Enter presses Run,
 # a picture clicked in the grid opens on its own.
 EDITOR_JS = """
 <script>
@@ -412,22 +530,22 @@ class App:
             box.value = "<br>".join(lines) + bar
 
         def step(label, fn):
-            lines.append(f"⏳ {label}")
+            lines.append(_ic("loader-circle", "spin") + f" {label}")
             show()
             try:
                 v = fn()
             except Exception as e:
-                lines[-1] = f'❌ {label} — <span class="err">{html.escape(str(e))}</span>'
+                lines[-1] = _ic("circle-x", "err") + f' {label} — <span class="err">{html.escape(str(e))}</span>'
                 show()
                 raise
-            lines[-1] = f"✅ {label}"
+            lines[-1] = _ic("circle-check", "ok") + f" {label}"
             show()
             return v
 
         if torch.cuda.is_available():
             step(f"GPU {torch.cuda.get_device_name(0)}", lambda: None)
         else:
-            lines.append('⚠️ ไม่มี GPU — ช้ามาก · Colab: <b>Runtime ▸ Change runtime type ▸ T4 GPU</b>')
+            lines.append(_ic('triangle-alert', 'fa') + ' ไม่มี GPU — ช้ามาก · Colab: <b>Runtime ▸ Change runtime type ▸ T4 GPU</b>')
         self.finder = step("โหลดโมเดล OWLv2", so.Finder)
         self.train = step("เตรียมภาพชุดฝึก (ครั้งแรกประมาณ 1 นาที)",
                           lambda: Dataset("train", self.finder, folder, progress=lambda i, n: show(i / n)))
@@ -437,6 +555,7 @@ class App:
         self.has_test = so.test_available(folder)
         self.classes = self.train.classes
         saved = self._load_autosave()
+        self.first_run_done = bool(saved)     # the guide opens first only on a team's first start
         prompts = saved.get("prompts") or {c: [self._default_prompt(c)] for c in self.classes}
         self.prompts_text = saved.get("prompts_text") or prompts_to_text(prompts, self.classes)
         self.prompts, self.prompt_errors = parse_prompts(self.prompts_text, self.classes)
@@ -508,7 +627,7 @@ class App:
 
     def _press(self):
         t = time.time()
-        self.statusbar.value = '<div class="statusbar">⏳ กำลังรัน…</div>'
+        self.statusbar.value = f'<div class="statusbar">{_ic("loader-circle", "spin")} กำลังรัน…</div>'
         try:
             prev = self.train.score
             self._run(self.train)
@@ -518,14 +637,14 @@ class App:
             self._show_result(prev, time.time() - t)
             self.gallery.refresh()
         except (Exception, KeyboardInterrupt) as e:
-            self.statusbar.value = f'<div class="statusbar bad">✕ {html.escape(_team_error(e))}</div>'
+            self.statusbar.value = f'<div class="statusbar bad">{_ic("circle-x")} {html.escape(_team_error(e))}</div>'
 
     def _show_result(self, prev, secs):
         s = self.train.score
         self.best = s if self.best is None else max(self.best, s)
         delta = ""
         if prev is not None and abs(s - prev) > 1e-6:
-            delta = f'<span class="{"up" if s > prev else "down"}">{"▲" if s > prev else "▼"}{abs(s - prev):.3f}</span>'
+            delta = f'<span class="{"up" if s > prev else "down"}">{_ic("arrow-up" if s > prev else "arrow-down")}{abs(s - prev):.3f}</span>'
         self.score_html.value = (f'<div style="text-align:right"><div class="score">{s:.3f}</div>'
                                  f'<div class="k">{delta} ชุดฝึก · ดีสุด {self.best:.3f}</div></div>')
 
@@ -538,32 +657,32 @@ class App:
         for c in self.classes:
             v = self.train.per[c]
             rows.append(f'<div><span class="dot" style="background:rgb{COLORS[c]}"></span><span class="c">{c}</span>'
-                        f'<b>{v["f1"]:.2f}</b><span class="muted">✓{v["tp"]} ✗{v["fp"]} ?{v["fn"]}</span></div>')
+                        f'<b>{v["f1"]:.2f}</b><span class="muted">{_ic("check")}{v["tp"]} {_ic("x")}{v["fp"]} {_ic("circle-help")}{v["fn"]}</span></div>')
         notes = []
         if not self.script_error and "my_filter" not in self.fns:
             notes.append(f"script.py ไม่มี def my_filter — ใช้เกณฑ์ {START_THRESHOLD} ทุกแบบ")
         if not self.script_error and "my_draw" not in self.fns:
             notes.append("script.py ไม่มี def my_draw — วาดภาพแบบตั้งต้น")
         notes += [f"prompts.txt คำค้นยาวเกิน {MAX_PROMPT_TOKENS - 2} คำ ส่วนท้ายถูกตัด: {p}" for p in self.long_prompts]
-        err = "".join(f'<div class="errline">✕ {html.escape(p)}</div>' for p in problems)
-        err += "".join(f'<div class="noteline">! {html.escape(n)}</div>' for n in notes)
+        err = "".join(f'<div class="errline">{_ic("circle-x")} {html.escape(p)}</div>' for p in problems)
+        err += "".join(f'<div class="noteline">{_ic("triangle-alert")} {html.escape(n)}</div>' for n in notes)
         printed = self.printed.lines()
         if printed:
             err += ('<div class="ptitle" style="padding-top:6px">print</div><div class="printed">'
                     + html.escape("\n".join(printed)) + "</div>")
-        self.output.value = (f'<div class="ptitle">Output · F1 ของแต่ละแบบ (ชุดฝึก) · ✓ ถูก ✗ ทักผิด ? พลาด</div>'
+        self.output.value = (f'<div class="ptitle">Output · F1 ของแต่ละแบบ (ชุดฝึก) · {_ic("check")} ถูก {_ic("x")} ทักผิด {_ic("circle-help")} พลาด</div>'
                              f'{err}<div class="f1grid">{"".join(rows)}</div>')
 
-        flt = "my_filter ✓" if self.fns.get("my_filter") and not self.filter_error else f"เกณฑ์ {START_THRESHOLD}"
+        flt = "my_filter " + _ic("check") if self.fns.get("my_filter") and not self.filter_error else f"เกณฑ์ {START_THRESHOLD}"
         test = f" · ชุดทดสอบ {self.test.score:.3f}" if self.test is not None else ""
-        state = f"✕ {len(problems)} ปัญหา" if problems else "✓ ไม่มีปัญหา"
+        state = _ic("circle-x") + f" {len(problems)} ปัญหา" if problems else _ic("circle-check") + " ไม่มีปัญหา"
         self.statusbar.value = (f'<div class="statusbar{" bad" if problems else ""}"><span>{state}</span>'
                                 f'<span>{flt}</span><span>{secs:.1f} วินาที</span>'
                                 f'<span class="r">ชุดฝึก {s:.3f}{test}</span></div>')
 
     # ------------------------------------------------------------ screen
     def show(self):
-        run = _button("▶ Run", primary=True)
+        run = _button("Run", primary=True)
         run.add_class("run-btn")
         run.tooltip = "Ctrl+Enter"
         run.on_click(lambda _: self._press())
@@ -578,7 +697,9 @@ class App:
 
         self.prompt_area = self._code(self.prompts_text)
         self.script_area = self._code(self.script)
-        files = {"prompts.txt": self.prompt_area, "script.py": self.script_area}
+        guide = _html(GUIDE)
+        guide.layout = W.Layout(width="100%", height=f"{EDITOR_H}px")
+        files = {"วิธีเล่น": guide, "prompts.txt": self.prompt_area, "script.py": self.script_area}
         tab_buttons = {}
 
         def open_file(name):
@@ -591,6 +712,7 @@ class App:
             b.on_click(lambda _, n=name: open_file(n))
             tab_buttons[name] = b
         reset = _button("โค้ดตั้งต้น")
+        reset.add_class("ic-reset")
         reset.tooltip = "ใส่ script.py ตั้งต้นกลับ"
 
         def do_reset(_):
@@ -607,12 +729,12 @@ class App:
         tool.add_class("tool")
         bar = W.HBox(list(tab_buttons.values()) + [W.HBox(layout=W.Layout(flex="1")), tool])
         bar.add_class("tabs")
-        editor = W.VBox([bar, self.prompt_area, self.script_area],
+        editor = W.VBox([bar, guide, self.prompt_area, self.script_area],
                         layout=W.Layout(flex="1 1 0", height=f"{EDITOR_H + 35}px"))
         editor.add_class("pane")
-        open_file("prompts.txt")
+        open_file("prompts.txt" if self.first_run_done else "วิธีเล่น")
 
-        sets = [("ชุดฝึก", "train")] + ([("🔓 ชุดทดสอบ", "test")] if self.has_test else [])
+        sets = [("ชุดฝึก", "train")] + ([("ชุดทดสอบ", "test")] if self.has_test else [])
         self.view_set = "train"
         self.gallery = Gallery(lambda: self.test if self.view_set == "test" else self.train,
                                lambda: self.fns.get("my_draw"), sets, self._pick_set, EDITOR_H)
@@ -635,7 +757,7 @@ class App:
     def _pick_set(self, name):
         """The picture pane's set changed (train / hidden test)."""
         if name == "test" and self.test is None:
-            self.statusbar.value = '<div class="statusbar">⏳ กำลังเตรียมชุดทดสอบ…</div>'
+            self.statusbar.value = f'<div class="statusbar">{_ic("loader-circle", "spin")} กำลังเตรียมชุดทดสอบ…</div>'
             try:
                 self.test = Dataset("test", self.finder, self.folder)
             except Exception as e:
@@ -655,9 +777,11 @@ class App:
 
     def _file_tools(self):
         save = _button("บันทึก")
+        save.add_class("ic-save")
         save.tooltip = "ดาวน์โหลดไฟล์คำค้น + Script ของทีม"
         load = W.FileUpload(accept=".json", multiple=False, description="เปิด", icon="",
                             layout=W.Layout(width="auto"))
+        load.add_class("ic-open")
         msg = _html()
 
         def do_save(_):
@@ -673,7 +797,7 @@ class App:
             path = Path(f"siitec_round1_{safe}.json")
             path.write_text(json.dumps(exp, ensure_ascii=False, indent=1))
             self._autosave()
-            msg.value = f'<span class="ok">✓ {path.name}</span>'
+            msg.value = f'<span class="ok">{_ic("check")} {path.name}</span>'
             try:
                 from google.colab import files
                 files.download(str(path))
@@ -695,17 +819,17 @@ class App:
                         or not isinstance(data.get("script", ""), str):
                     raise ValueError
             except Exception:
-                msg.value = '<span class="err">✕ ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้</span>'
+                msg.value = f'<span class="err">{_ic("circle-x")} ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้</span>'
                 return
             try:
                 self.prompt_area.value = data.get("prompts_text") or prompts_to_text(data.get("prompts", {}), self.classes)
                 if data.get("script"):
                     self.script_area.value = data["script"]
                 self.team_box.value = data.get("team", self.team_box.value)
-                msg.value = '<span class="ok">✓ เปิดไฟล์แล้ว</span>'
+                msg.value = f'<span class="ok">{_ic("check")} เปิดไฟล์แล้ว</span>'
                 self._press()
             except Exception:
-                msg.value = '<span class="err">✕ ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้ หรือถูกแก้จนเสีย</span>'
+                msg.value = f'<span class="err">{_ic("circle-x")} ไฟล์นี้ไม่ใช่ไฟล์ที่ปุ่ม “บันทึก” ทำไว้ หรือถูกแก้จนเสีย</span>'
 
         save.on_click(do_save)
         load.observe(do_load, "value")
@@ -730,7 +854,10 @@ class Gallery:
         self.pick = W.Dropdown(options=[("ทุกภาพ", "all"), ("มีที่พลาด", "miss"), ("มีที่ทักผิด", "fa"), ("ถูกหมด", "ok"),
                                         ("ขวด", "bottle"), ("น็อต", "metal_nut"), ("สกรู", "screw")],
                                layout=W.Layout(width="100px"))
-        self.prev, self.next = _button("◀"), _button("▶")
+        self.prev, self.next = _button(""), _button("")
+        for b, c in ((self.prev, "ic-prev"), (self.next, "ic-next")):
+            b.add_class(c)
+            b.add_class("icon-only")
         self.where, self.gal, self.msg = _html(), _html(), _html()
         self.pick.observe(lambda _: self._go(0), "value")
         self.prev.on_click(lambda _: self._go(-1, step=True))
@@ -812,10 +939,10 @@ class Gallery:
         try:
             self._refresh()
         except (Exception, KeyboardInterrupt) as e:
-            self.gal.value = f'<div class="errline">✕ {html.escape(_team_error(e))}</div>'
+            self.gal.value = f'<div class="errline">{_ic("circle-x")} {html.escape(_team_error(e))}</div>'
         msg = ""
         if self.draw_problem:
-            msg += f'<div class="errline">✕ {html.escape(self.draw_problem)}  → ใช้แบบตั้งต้น</div>'
+            msg += f'<div class="errline">{_ic("circle-x")} {html.escape(self.draw_problem)}  → ใช้แบบตั้งต้น</div>'
         printed = self.printed.lines(10)
         if printed:
             msg += ('<div class="ptitle">print จาก my_draw</div><div class="printed">'
@@ -837,8 +964,8 @@ class Gallery:
             r, (f_hit, a_hit) = ds.records[i], ds.marks[i]
             out = self._drawn(ds, i, so.read_rgb(Path(ds.dir) / r["file"]))
             ok, miss, fa = f_hit.count(True), a_hit.count(False), f_hit.count(False)
-            marks = (f'<span class="ok">✓{ok}</span>' if ok else "") + (f'<span class="miss">?{miss}</span>' if miss else "") + \
-                    (f'<span class="fa">✗{fa}</span>' if fa else "")
+            marks = (f'<span class="ok">{_ic("check")}{ok}</span>' if ok else "") + (f'<span class="miss">{_ic("circle-help")}{miss}</span>' if miss else "") + \
+                    (f'<span class="fa">{_ic("x")}{fa}</span>' if fa else "")
             shots.append(f'<div class="shot" data-i="{i}"><img src="data:image/jpeg;base64,{_jpeg_b64(out, 360)}">'
                          f'<div class="cap"><span class="fn">{r["file"][:-4]}</span>{marks or "<span class=ok>ปกติ</span>"}</div></div>')
         self.gal.value = f'<div class="gal">{"".join(shots)}</div>' if shots else '<span class="k">ไม่มีภาพ</span>'
