@@ -4,7 +4,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SIITec-Hackathon-2026/round1/blob/main/round1.ipynb)
 
-เปิด `round1.ipynb` ใน Colab → *Runtime ▸ Change runtime type ▸ T4 GPU* → กด ▶ ที่เซลล์เดียวของโน้ตบุ๊ก
+เปิด `round1.ipynb` ใน Colab → กด ▶ ที่เซลล์เดียวของโน้ตบุ๊ก (โน้ตบุ๊กขอ T4 GPU ให้เอง)
 
 ## ข้อมูล
 
