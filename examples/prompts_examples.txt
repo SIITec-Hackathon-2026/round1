@@ -1,0 +1,18 @@
+# ตัวอย่าง prompts.txt: คัดลอกไปวางใน prompts.txt (แทนหัวข้อเดิมของแบบนั้น)
+# คำแปลอยู่หลัง # AI ไม่อ่าน วางไปทั้งบรรทัดได้เลย
+
+# 1) หลายคำสำหรับแบบเดียว: AI ใช้คำที่ได้คะแนนสูงสุดในแต่ละจุด
+[metal_nut_scratch]
+a scratch on a metal nut             # รอยขีดข่วนบนน็อตโลหะ
+a thin scratch line on metal         # เส้นรอยขีดบางๆ บนโลหะ
+a scraped mark on a metal surface    # รอยถลอกบนผิวโลหะ
+
+# 2) ขีดหน้าคำ = ไม่ใช่สิ่งนี้ (ใช้กับทุกแบบของชิ้นงานชนิดเดียวกัน)
+[screw_defect]
+a damaged screw                      # สกรูที่เสียหาย
+- a normal screw                     # ไม่ใช่: สกรูปกติ
+
+# 3) หมายเหตุด้วย #: AI ไม่อ่านหลัง #
+[bottle_contamination]
+dirt inside a bottle                 # สิ่งสกปรกในขวด (ลองแล้ว 0.14)
+# a stain on glass                   # คราบบนแก้ว (ปิดไว้ก่อน)
