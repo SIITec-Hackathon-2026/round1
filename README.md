@@ -6,6 +6,8 @@
 
 เปิด `round1.ipynb` ใน Colab → กด ▶ ที่เซลล์เดียวของโน้ตบุ๊ก (โน้ตบุ๊กขอ T4 GPU ให้เอง)
 
+สไลด์ชี้แจงรอบคัดเลือก: [`slides_round1.pdf`](slides_round1.pdf)
+
 ### อุ่นเครื่องก่อน: ลองเล่น OWLv2
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SIITec-Hackathon-2026/round1/blob/main/playground.ipynb)
